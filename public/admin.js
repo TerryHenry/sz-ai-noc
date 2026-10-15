@@ -6,7 +6,7 @@ const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 $('#view').href = api('/'); $('#launch').href = api('/launch.html');
 
-let layout, catalog = [], presets = [], venues = [], customers = [], cur = 0, curView = -1, showPicker = false, unusedOnly = false;
+let layout, catalog = [], presets = [], venues = [], customers = [], cur = 0, curView = -1, showPicker = false, unusedOnly = false, showUnavail = false;
 const SC = () => (curView < 0 ? layout.screens : layout.views[curView].screens);   // screens of the view being edited (-1 = Main)
 const def = (t) => catalog.find((c) => c.type === t);
 
@@ -141,7 +141,7 @@ function pickBtn(c, u) {
 function pickerBody() {
   const u = usage();
   const terms = pickQ.toLowerCase().split(/\s+/).filter(Boolean);
-  const items = catalog.filter((c) => (!unusedOnly || !u.has(c.type)) && (customers.length || !c.msp || u.has(c.type)) && terms.every((t) => `${c.title} ${c.group} ${c.sub} ${c.type}`.toLowerCase().includes(t)));
+  const items = catalog.filter((c) => (!unusedOnly || !u.has(c.type)) && (customers.length || !c.msp || u.has(c.type)) && (showUnavail || !c.unavailable || u.has(c.type)) && terms.every((t) => `${c.title} ${c.group} ${c.sub} ${c.type}`.toLowerCase().includes(t)));
   if (!items.length) return '<p style="color:var(--muted)">No widgets match.</p>';
   return [...new Set(items.map((c) => c.group))].map((g) => {
     const gi = items.filter((c) => c.group === g);
@@ -153,10 +153,11 @@ function pickerBody() {
 }
 function pickerHtml() {
   const u = usage();
-  const inUse = catalog.filter((c) => u.has(c.type)).length;
+  const inUse = catalog.filter((c) => u.has(c.type)).length; const nUn = catalog.filter((c) => c.unavailable).length;
   return `<div class="picker-head"><strong>${inUse} of ${catalog.length}</strong> widgets in use
       <input id="pq" type="search" placeholder="Search ${catalog.length} widgets…  try: dpsk, vlan, poe, guest, ssid" value="${esc(pickQ)}">
-      <label class="inline"><input type="checkbox" id="unusedOnly" ${unusedOnly ? 'checked' : ''}> Unused only</label></div>
+      <label class="inline"><input type="checkbox" id="unusedOnly" ${unusedOnly ? 'checked' : ''}> Unused only</label>
+      ${nUn ? `<label class="inline" title="Widgets that need data RUCKUS AI does not provide (clients, switch ports, DPSK, guests, ...). They stay empty."><input type="checkbox" id="showUnavail" ${showUnavail ? 'checked' : ''}> Show ${nUn} without RUCKUS AI data</label>` : ''}</div>
     <div id="pickerBody">${pickerBody()}</div>`;
 }
 document.addEventListener('input', (e) => {
@@ -183,7 +184,7 @@ document.addEventListener('change', (e) => {
     const pr = presets[Number(e.target.value)];
     SC().push({ name: pr.name, widgets: pr.widgets.map((x) => ({ type: x.type, venue: '', w: x.w || (catalog.find((c) => c.type === x.type) || {}).w || 3, h: x.h || (catalog.find((c) => c.type === x.type) || {}).h || 2, match: x.match || '', title: x.title || '', params: x.params || {} })) });
     cur = SC().length - 1; render(); say(`Added "${pr.name}" — click Save & apply to keep it.`); return;
-  } if (e.target.id === 'unusedOnly') { unusedOnly = e.target.checked; render(); } });
+  } if (e.target.id === 'unusedOnly') { unusedOnly = e.target.checked; render(); } if (e.target.id === 'showUnavail') { showUnavail = e.target.checked; render(); } });
 
 document.addEventListener('click', (e) => {
   const t = e.target.closest('button'); if (!t) return;

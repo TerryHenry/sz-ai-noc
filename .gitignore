@@ -6,3 +6,4 @@ dist/
 packaging/.cache/
 __pycache__/
 *.pyc
+snap*.json
