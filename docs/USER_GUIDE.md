@@ -221,8 +221,8 @@ The catalog is inherited from a RUCKUS One tool, so most of it has no RUCKUS AI 
 | Alarms from open incidents; Intent AI | Switch ports, port PoE, link speed, port errors, switch events |
 | Switch IP, type, port count, wired clients, PoE percent (where reported) | Switch CPU, memory, PoE watts, uptime |
 | Clients per zone and over time | DPSK, guests, Wi-Fi networks, VLAN pools, identity groups, Wi-Fi calling |
-| Most **Client experience** widgets (network-wide) | AP radios, channels, TX power; AP clients per AP |
-| History comparisons on the metrics above | Per-zone connection success (RUCKUS AI returned none for SmartZone zones) |
+| **Client experience** widgets, network-wide and per zone (zones that have clients) | AP radios, channels, TX power; AP clients per AP |
+| History comparisons on the metrics above | |
 
 **Check your own tenant:** the server includes a checker that runs every widget against your data and sorts it into OK, needs history,
 empty, no data, n/a or broken.
@@ -870,7 +870,7 @@ Server logs go to the terminal (or the service log). Failed notifications and fa
 - **RUCKUS AI is read-only and aggregate.** There is no per-client list, switch-port data, DPSK, guest or network data, and no AP radio, switch CPU/memory/uptime values. See [Which widgets work](#which-widgets-work-with-ruckus-ai).
 - **Undocumented service.** The inventory, incident and Intent AI queries use RUCKUS AI's analytics GraphQL, which is not part of its published API (the REST part is). It can change without notice; only the widgets that use it are affected.
 - **Controller names** come from RUCKUS AI's onboarding record, not the SmartZone's own name, so they may differ from what you see in the controller UI.
-- Per-zone connection success is not available for SmartZone zones, so the per-zone Client experience widgets stay empty.
+- Per-zone connection success (*Connection success by venue*, *Connection experience by venue*) exists only for zones that currently have clients: RUCKUS AI returns nothing for an empty zone. Only the 40 zones with the most clients are queried, and they refresh every 5 minutes.
 - The whole AP list is read in under a second, but per-AP client counts and IP addresses are not (they need a slow per-zone call that returned errors), so those AP widgets are not offered.
 - The picker hides widgets with no RUCKUS AI source. The hidden list was measured on one tenant; run `npm run widgets:check` if yours looks different.
 - History begins at first run; weekly comparisons need a week of data (and per-customer trends start when MSP mode is enabled).
