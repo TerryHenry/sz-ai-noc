@@ -1,6 +1,6 @@
 # User guide
 
-SZ-AI NOC Wall turns the RUCKUS One API into a wall display. One small server polls RUCKUS One; any browser on your network
+SZ-AI NOC Wall turns RUCKUS AI (`ruckus.cloud/ai`) into a wall display for your SmartZone controllers. One small server polls RUCKUS AI; any browser on your network
 shows the result. You design the screens in a browser-based editor.
 
 **Contents**
@@ -8,14 +8,14 @@ shows the result. You design the screens in a browser-based editor.
 1. [How it works](#how-it-works)
 2. [The viewer](#the-viewer)
 3. [The editor](#the-editor)
-4. [Widgets](#widgets)
+4. [Widgets](#widgets) · [Which widgets work with RUCKUS AI](#which-widgets-work-with-ruckus-ai)
    - [Throughput and traffic](#throughput-and-traffic) · [AP groups, RF quality and gauges](#ap-groups-rf-quality-and-gauges)
 5. [Auto-fit and layout](#auto-fit-and-layout) · [Layout designer](#layout-designer)
 6. [Multiple displays and video walls](#multiple-displays-and-video-walls) · [Display playlists](#display-playlists)
 7. [Views and schedules](#views-and-schedules)
 8. [Thresholds](#thresholds)
 9. [Alerts and notifications](#alerts-and-notifications) · [Ticker, messages and feeds](#ticker-messages-and-feeds)
-10. [Venue drill-down](#venue-drill-down) · [MSP mode (multiple customers)](#msp-mode-multiple-customers)
+10. [Venue drill-down](#venue-drill-down) · [MSP mode](#msp-mode-multiple-customers)
 11. [History](#history)
 12. [Reports](#reports)
 13. [Configuration](#configuration)
@@ -31,26 +31,33 @@ shows the result. You design the screens in a browser-based editor.
 ## How it works
 
 ```
- RUCKUS One  ◄── REST (read-only queries, every 60 s) ──  SZ-AI NOC Wall server  ──► browsers (wall TVs, laptops, kiosks)
-   public API                                              • keeps a snapshot + 30 days of history (SQLite)
-                                                           • evaluates alert rules, sends notifications
-                                                           • streams updates to every browser (SSE)
+ RUCKUS AI  ◄── REST + analytics queries (read-only, every 60 s) ──  SZ-AI NOC Wall server  ──► browsers (wall TVs, laptops, kiosks)
+ (SmartZone controllers                                              • keeps a snapshot + 30 days of history (SQLite)
+  onboarded to RUCKUS AI)                                            • evaluates alert rules, sends notifications
+                                                                     • streams updates to every browser (SSE)
 ```
 
-- The **server** (`node server.js`) is the only thing that talks to RUCKUS One. Browsers hold no credentials.
-- The server polls every `POLL_SECONDS` (default 60). Some heavier data (switch ports, DPSK, guests, networks, VLAN
-  pools, identity groups, Wi-Fi calling profiles) is fetched **only while a widget that needs it is on a screen**, and
-  cached for 3–10 minutes.
+- The **server** (`node server.js`) is the only thing that talks to RUCKUS AI. Browsers hold no credentials.
+- The server polls every `POLL_SECONDS` (default 60). Intent AI recommendations and the experimental connection-experience
+  analytics are slower sources, fetched on their own schedule (every 5 minutes) and cached.
 - Every browser gets live updates over a persistent connection — no page refresh needed.
 - Your layout, history and settings live in the `data/` folder next to the server.
 
-The server reads three things from RUCKUS One with an API key: the **public REST API** (venues, APs, switches, clients, alarms, ports, DPSK, guests…),
-R1's **analytics service** (connection success, incidents, top applications — experimental), and R1's **event log** (switch events). In **MSP mode** the same is done for every customer.
+**What the server reads** with one Application Token:
 
-**What this is not:** it does not embed or replay RUCKUS One's *Data Studio* dashboards. Data Studio only accepts a
-logged-in user's token, which an unattended server can't hold. Things that exist only in Data Studio — airtime,
-Wi-Fi-calling call duration, long-range history — are not available here. (Run Data Studio in a separate
-signed-in kiosk tab if you need them.)
+| From RUCKUS AI | Becomes |
+|---|---|
+| SmartZone controllers (REST `onboardedSystems` + analytics) | the **Controllers** widgets, with their RUCKUS AI onboarding state |
+| Zones and switch groups | "venues": the zone/venue filters, tables and bars |
+| AP and switch hierarchies | every AP and switch with status, model and firmware (the AP list comes back in under a second); switches also carry IP, type, port count, wired clients and PoE percent |
+| Open incidents | **alarms** (severity mapped to Critical / Major / Minor / Warning) |
+| Intent AI | the **Intent AI** widgets: recommendations needing action versus applied |
+| Client count per zone | the **Clients** numbers and trend (there is no per-client list) |
+| Connection-experience analytics (undocumented, experimental) | the **Client experience** widgets |
+
+**What this is not.** RUCKUS AI does not expose per-client records, switch ports, DPSK, guest passes, Wi-Fi networks,
+Wi-Fi calling profiles, AP radios, or CPU / memory / PoE-watts / uptime for switches. Widgets built on those cannot show
+data — see [Which widgets work with RUCKUS AI](#which-widgets-work-with-ruckus-ai).
 
 ---
 
@@ -117,7 +124,7 @@ From top to bottom:
 | **Dashboard title / Rotate every** | title in the top bar; default seconds per screen (`0` = no rotation) |
 | **Reset to defaults** | replaces all screens, views and schedules with the built-in three screens (asks first) |
 | **Save & apply** | validates and saves the layout; every open display updates immediately |
-| **R1 connection** | credentials, region, poll interval, **Test connection**, **Diagnostics** |
+| **RUCKUS AI connection** | credentials, region, poll interval, **Test connection**, **Diagnostics** |
 | **Alerts** | alert rules and the list of active alerts |
 | **Display playlists** | which screens each monitor shows, in what order |
 | **Notifications** | Slack / Teams / email / webhook channels |
@@ -146,55 +153,47 @@ show instead of the widget's own name.
 
 ![Widget catalog picker](img/picker.png)
 
-### R1 connection
+### RUCKUS AI connection
 
 | Control | Notes |
 |---|---|
-| Tenant ID, Client ID, Client secret | the secret is write-only — it shows *saved* afterwards and is never sent back |
-| Region | fills the API and OAuth URLs; choose *Custom* to type your own |
+| Tenant ID | leave empty. Only for an MSP reading a customer's account (sent as `x-rks-tenantid`). A stale value here makes every call fail with HTTP 401 |
+| Client ID, Client secret | from **Administration → Developers → Application Tokens** in RUCKUS AI. The secret is write-only — it shows *saved* afterwards and is never sent back |
+| Region | North America / Europe / Asia (sets the API host; the web host is derived) |
 | Poll every (sec) | 15–3600; lower = fresher but more API calls |
-| **Test connection** | gets a token and lists your venues |
-| **Diagnostics** | dumps what R1 actually returns (status values, field names, a sample row of each type) |
+| **Test connection** | gets a token and checks both the REST and analytics services; shows the number of controllers and zones |
+| **Diagnostics** | dumps what RUCKUS AI returned (counts and source errors) |
+
+RUCKUS One API keys do **not** work here. The MSP and per-customer modes of RUCKUS One NOC Wall are not offered.
 
 ---
 
 ## Widgets
 
-### The default screens (RUCKUS One look-alikes)
+### The default screens
 
-The three built-in screens are modelled on RUCKUS One's own pages:
-
-| Default screen | Modelled on | Tiles |
-|---|---|---|
-| **Dashboard** | the R1 Dashboard | **Alarms** (ring by severity) · **Client Experience** · **Venues** (ring by status) · **Devices** (bars by status) · **Clients** · **Did you know?** · Venues table · Connected Clients Over Time · Top 5 SSIDs by Traffic / by Clients |
-| **Wi-Fi** | the Wireless and WLAN reports | Top APs by Traffic / by Client Count · Top SSIDs by Traffic / by Client Count · Traffic Trend (downlink / uplink) · Active SSIDs Trend · Top APs and Top SSIDs tables |
-| **Switch** | the Wired report | Top Switches by Traffic / PoE Usage / Errors · Traffic by Switch Model and Port Speed · Traffic Trend · Error Trend · Overview |
-
-![RUCKUS One style Wi-Fi screen](img/r1-wifi.png)
-![RUCKUS One style Switch screen](img/r1-switch.png)
-
-**What's different from R1:** the numbers come from R1's APIs, so a few tiles are omitted — *AP Capacity* and airtime.
-*Connection Success*, *Time To Connect*, *Incidents* and *Top Applications* are included via R1's analytics service (experimental, see below). The map is
-replaced by a Venues table. R1's "traffic over a period" is replaced by **measured throughput**: client throughput comes from
-client byte counters, and switch traffic from switch-port counters, each differenced between polls (so switch traffic updates
-every few minutes, when ports are refreshed, and the *Traffic Trend* charts fill in over time). The same screens are in the
-**+ Preset screen…** menu as *RUCKUS One Dashboard / Wi-Fi / Switch*, so you can add them to an existing layout.
-
-There are **1,000 widgets**, found in the picker under these groups. Use the search box — it matches title, group and
-ID, so `dpsk`, `vlan`, `poe`, `ssid`, `guest`, `yesterday` all work. The tag on each button shows whether you already
-use it (**in use ×2 · 1 here** / **unused**), and **Unused only** filters the list.
-
-| Group | What's in it |
+| Default screen | Tiles |
 |---|---|
-| **Clients, APs, Switches, Ports, Alarms** | every field you'd group by — SSID, OS, band, channel, manufacturer, model, VLAN, security, signal quality, firmware, status, venue… — as a **donut**, **bars**, or **table**, for counts and for measures like traffic, PoE draw, errors, average signal |
-| **DPSK users, Guest users, Wi-Fi networks, Identity groups** | same idea for access/identity data: by pool, VLAN, expiry, type, status, network… |
-| **Scorecards** | ~100 single numbers: clients per band, AP availability, switch CPU/memory highs, PoE budget, ports with errors, active/expiring DPSK users, active guests, VLANs in use… |
-| **Trends** | any key metric over time, and category trends ("Clients by SSID over time") |
-| **History** | now-vs-yesterday / last-week overlays, hour-of-day profiles, peak / average / change scorecards |
-| **Gauges, RF** | dials for average signal and SNR per band, AP availability, PoE and CPU; RF-quality tables by venue / AP group / band; coverage-by-band tables filtered to AP groups (see below) |
-| **AP load** | busiest radios, channel load, per-AP client/throughput table and congestion scorecards — stand-ins for airtime (see below) |
-| **AP radios** | channel, band, channel width and TX power across all AP radios — the AP channel distribution |
-| **Headline numbers, Breakdowns, Rankings, Lists & tables, Switching, Wi-Fi calling, Wi-Fi health, Client mix, DPSK, Guests, VLANs, Networks, Identity** | hand-built favourites: alarm and offline-device lists, venue health table, VLAN overview, DPSK pools, expiring-soon lists… |
+| **Overview** | Controllers healthy · APs · Switches · Alarms · Clients · Devices offline · Intent AI action needed · Connected clients over time · SmartZone controllers table · APs by controller · Alarms list · Offline devices list |
+| **Zones** | Zones and switch groups table · Clients by zone · AP status, model and firmware donuts · APs online over time |
+| **Switches** | Switch count · status, model and firmware donuts · Switches table |
+| **Intent AI** | Action needed · Active alarms over time · Intent AI recommendations (grouped by recommendation, with the number of zones affected) |
+
+![Overview screen](img/overview.png)
+![Zones screen](img/zones.png)
+![Switches screen](img/switches.png)
+![Intent AI screen](img/intent-ai.png)
+
+*(Screenshots use synthetic demo data: `npm run demo:ai` shows the same screens without credentials.)*
+
+The **+ Preset screen…** menu adds more (prefixed *SZ-AI* for the defaults). Presets never contain widgets that have no RUCKUS AI data: those widgets are dropped, and a preset that would lose half or more of its widgets (Switch events, Throughput, Client mix, the MSP ones…) is not offered. `npm run widgets:check` fails if a default screen or offered preset holds one.
+
+The picker lists only widgets that can show RUCKUS AI data. It matches title, group and ID in the search box (`controller`, `intent`,
+`firmware`, `model`, `zone`…). The tag on each button shows whether you already use it (**in use ×2 · 1 here** / **unused**), and
+**Unused only** filters the list. Tick **Show … without RUCKUS AI data** to list the hidden widgets as well; they stay empty.
+
+Groups you will use most: **RUCKUS AI** (controllers, Intent AI), **Headline numbers**, **Breakdowns**, **Rankings**, **Lists & tables**,
+**Trends**, **APs**, **Switches**, **Alarms**, **Client experience** and **History**.
 
 **Reading a widget name.** *"Client traffic by SSID (bars)"* = the **measure** (client traffic) grouped by a **field**
 (SSID), drawn as **bars**. *"Clients by SSID"* with no measure means a count. A *(donut)* shows the top few plus an
@@ -207,12 +206,38 @@ columns.
 
 ### Which data does each widget need?
 
-Widgets that need heavier data (ports, DPSK, guests, networks, VLAN pools, identity groups, Wi-Fi calling profiles, and
-R1's analytics service for the *Client experience* widgets)
-automatically switch that data source on while they're on a screen. The first poll after you add one can take a minute
-to fill in. If a source fails, only the widgets that need it say so; the rest keep working.
+Widgets that need the analytics service (the *Client experience* widgets) switch that source on while they are on a screen.
+The first poll after you add one can take a minute to fill in. If a source fails, only the widgets that need it say so; the rest keep working.
+
+### Which widgets work with RUCKUS AI
+
+The catalog is inherited from a RUCKUS One tool, so most of it has no RUCKUS AI data behind it. Checked on a live tenant
+(3,358 APs, 103 switches, 168 controllers), of 1,174 widgets about **330 show data**, **20 need a day or more of history**,
+**about 715 have no source** and 109 are not applicable (MSP, external feeds). Nothing errors.
+
+| Works | Has no data |
+|---|---|
+| Controllers, zones, AP and switch counts, status, model, firmware | Anything per client: SSID, OS, band, channel, vendor, signal, traffic, throughput |
+| Alarms from open incidents; Intent AI | Switch ports, port PoE, link speed, port errors, switch events |
+| Switch IP, type, port count, wired clients, PoE percent (where reported) | Switch CPU, memory, PoE watts, uptime |
+| Clients per zone and over time | DPSK, guests, Wi-Fi networks, VLAN pools, identity groups, Wi-Fi calling |
+| Most **Client experience** widgets (network-wide) | AP radios, channels, TX power; AP clients per AP |
+| History comparisons on the metrics above | Per-zone connection success (RUCKUS AI returned none for SmartZone zones) |
+
+**Check your own tenant:** the server includes a checker that runs every widget against your data and sorts it into OK, needs history,
+empty, no data, n/a or broken.
+
+```bash
+RAI_CLIENT_ID=… RAI_CLIENT_SECRET=… npm run widgets:check                # live
+npm run widgets:check -- --demo                                          # offline regression on the demo data
+npm run widgets:check -- --save snap.json --write-unavailable            # also refresh the list the editor hides
+```
+
+`snap.json` holds your real names: keep it local (it is git-ignored). The list of hidden widgets is `lib/widget-availability.json`.
 
 ### Switching events: flaps, spanning-tree changes, loops
+
+> **Not available with RUCKUS AI.** This section describes RUCKUS One data (switch ports and event logs). With RUCKUS AI only the incident-based tiles (*Loops detected*, *Port-flap incidents*, *TCP SYN flood incidents*) can show data.
 
 ![Switch events](img/switch-events.png)
 
@@ -228,6 +253,8 @@ The **Switch events** preset (and the *Switching events* group in the widget pic
 Every widget has the usual **Venue** (and, in MSP mode, **Customer**) filter.
 
 ### Throughput and traffic
+
+> **Not available with RUCKUS AI.** There are no per-client byte counters or port counters, so throughput widgets stay empty. This section describes how the RUCKUS One version measures them.
 
 RUCKUS One's public API reports each client's **cumulative bytes up and down for its current session**, but not a rate.
 The server turns that into measured throughput: every poll it compares each client's counters with the previous poll,
@@ -280,7 +307,7 @@ This approximates, but is not identical to, Data Studio's time-binned *Client Th
 ![Top talkers and failures](img/top-talkers.png)
 ![Incidents](img/incidents.png)
 
-R1's own analytics service (the one behind its Client Experience and health reports) *does* accept an API-key token, even
+the RUCKUS AI analytics service (the one behind its Client Experience and health reports) *does* accept an API-key token, even
 though Data Studio doesn't. The server uses it to fetch, every 5 minutes and only while a widget needs it:
 
 - **Connection success** (24 h) — successful vs attempted connections, overall and at each stage:
@@ -297,26 +324,26 @@ though Data Studio doesn't. The server uses it to fetch, every 5 minutes and onl
 stage, and a "who and where" table with the worst offender per stage. Preset: **Top talkers and failures (experimental)**.
 The failure lists come back empty when there were no failures at that stage.
 
-**Incidents** (R1's own Incidents page, last 7 days): open-incident counts, a table (severity, what, where, when, duration,
-ongoing/cleared), and breakdowns by category, severity and type. An incident counts as *ongoing* if R1's window for it ended
-less than 3 hours ago. Severity names (Critical ≥ 0.8, High ≥ 0.6, Medium ≥ 0.3, Low) approximate R1's P1–P4 bands. Preset:
+**Incidents** (RUCKUS AI's own Incidents page, last 7 days): open-incident counts, a table (severity, what, where, when, duration,
+ongoing/cleared), and breakdowns by category, severity and type. An incident counts as *ongoing* if RUCKUS AI's window for it ended
+less than 3 hours ago. Severity names (Critical ≥ 0.8, High ≥ 0.6, Medium ≥ 0.3, Low) approximate RUCKUS AI's P1–P4 bands. Preset:
 **Incidents (experimental)**; alert rules can use *Open incidents* and *Open high/critical incidents*. **Airtime** is only
-visible here as R1's "high airtime" incidents — the *Airtime incidents* tile shows how many R1 raised (zero simply means R1
-raised none, not that airtime is fine). Impacted-AP/client detail is not available (R1 errors on it).
+visible here as RUCKUS AI's "high airtime" incidents — the *Airtime incidents* tile shows how many RUCKUS AI raised (zero simply means R1
+raised none, not that airtime is fine). Impacted-AP/client detail is not available (RUCKUS AI errors on it).
 
 **Roaming success, average client signal and AP service uptime** (24 h) are also available as tiles (network or per venue).
-**Airtime:** the schema does have airtime series (`airtimeUtilization`, busy, rx, tx), but on our test tenant R1 returned only
+**Airtime:** the schema does have airtime series (`airtimeUtilization`, busy, rx, tx), but on our test tenant RUCKUS AI returned only
 empty values for every filter tried, so there is no airtime widget; the *AP load* stand-ins remain the best option.
 
 **Per venue:** set a widget's **Venue** and these tiles switch to that venue — *Connection success*, *Time to connect*, the
 per-stage success tiles, and all the incident tiles/lists. (Connection *attempts/failed counts*, the stage table and the
 top-N lists stay network-wide; a venue-pinned counts tile shows "network-wide only".) **Connection experience by venue** (table)
-and **Connection success by venue** (bars) compare every venue at once. Venues are matched to R1's analytics by **name**, so a
+and **Connection success by venue** (bars) compare every venue at once. Venues are matched to RUCKUS AI's analytics by **name**, so a
 venue whose name differs between the two shows "no data for this venue". Per-venue figures are success *rates* only.
 
-> **Experimental.** This service is not part of R1's published API. It may change or stop accepting API keys without notice.
-> If it fails, only these widgets say so (the data-source chip turns amber and shows R1's error code); everything else keeps
-> working. The figures are **network-wide** (no per-venue split yet), and R1's own *AP Capacity*, service-validation and call-quality (MOS) results were refused for API keys, so they are not included.
+> **Experimental.** This service is not part of RUCKUS AI's published API. It may change or stop accepting API keys without notice.
+> If it fails, only these widgets say so (the data-source chip turns amber and shows RUCKUS AI's error code); everything else keeps
+> working. The figures are **network-wide** (no per-venue split yet), and RUCKUS AI's own *AP Capacity*, service-validation and call-quality (MOS) results were refused for API keys, so they are not included.
 
 #### AP load — the closest stand-in for airtime
 
@@ -546,60 +573,10 @@ a venue (DPSK, guests, identity groups) are unaffected.
 
 ## MSP mode (multiple customers)
 
-![R1 connection — MSP account](img/editor-connection.png)
+Not offered with RUCKUS AI. The MSP and per-customer connection modes belong to RUCKUS One NOC Wall; their widgets show as n/a.
+An MSP can read one customer at a time by entering that customer's tenant ID in **RUCKUS AI connection**.
 
-Everything is in the editor's **R1 connection** panel. Its first choice is *How do you connect to RUCKUS One?*:
-
-- **One RUCKUS One account** — a single tenant (the default). Enter its tenant ID, client ID, secret and region.
-- **MSP — one key for all my customers** (recommended for MSPs). R1's *delegated mode* lets an MSP's own API key act for the customers it manages.
-  1. In RUCKUS One, switch to the **MSP's own account** — not the *MSP Customers* pages (those have no Administration menu). Open *Administration → Account Management → Settings*, create an **Application Token**, and note the tenant ID (it is in the page address), client ID and secret.
-  2. Choose this mode, enter them with the region the MSP tenant lives in, and **Save & find customers**.
-  3. The app lists your customers (R1's `tenants/query`) with checkboxes — untick any you don't want. Only **Active** customers are polled; new ones appear within about ten minutes.
-- **MSP — a separate key for each customer** — add each customer's own application (name, tenant ID, client ID, secret, region) with **+ Add customer**, then **Save customers** and **Test** on each row. Useful for customers your MSP account doesn't manage, or if delegated access isn't available.
-
-Only the fields for the chosen mode are shown, and only that mode is used for polling (your entries for the other modes are kept, so you can switch back). Installs that predate the switch keep working: the mode is worked out from what was configured.
-
-![MSP overview](img/msp-overview.png)
-
-What changes:
-
-- **Every row of data carries its customer** — venues, APs, switches, clients, alarms, ports, DPSK, guests… — and the
-  poller keeps separate state per customer (token, throughput baselines, caches). Up to three customers are polled at a time.
-- **A customer that fails doesn't take the wall down.** Its row shows *Unreachable* (with R1's reason) and the others carry
-  on. The red "R1 API unreachable" banner appears only when *every* customer fails; otherwise the status chip counts source issues.
-- **Customer choice on every widget** (next to *Venue*): pin a tile to one customer and it shows only that customer's data,
-  with the customer's name in the title. Venue pickers read *Customer / Venue*. Trend widgets pinned to a customer use that
-  customer's own history (recorded from the day you enable MSP mode).
-- **Fleet statistics across all customers.** A widget with no customer chosen already covers *every* customer (e.g. *Clients by SSID*, *AP models*). On top of that,
-  every entity has a **Customer** breakdown — search the catalog for "customer": clients, APs, radios, switches, ports, alarms, DPSK users, guests and networks *by customer*
-  (counts, throughput, traffic, signal, PoE and so on, as bars, donuts or tables), plus *clients / APs / alarms by customer over time*. Fleet scorecards (*Venues, APs, Switches, Clients,
-  Throughput, Devices offline — all customers*), the **Fleet totals** table and rankings (*Offline devices by customer*, *Throughput by customer*) sit under **Customers (MSP)**.
-  The **MSP fleet statistics** preset puts them on one screen. These widgets stay out of the picker until at least one customer is configured.
-![MSP fleet statistics](img/msp-fleet.png)
-![MSP rankings](img/msp-rankings.png)
-![MSP licensing](img/msp-licensing.png)
-
-- **Rankings and comparisons** (presets **MSP rankings**, **MSP trends**, **MSP fleet detail**): *Customer health score* (100 minus transparent penalties for offline APs/switches, critical and major alarms, poor signal and low connection success — the
-  breakdown table shows exactly what cost points), AP availability, clients per AP (load), poor-signal clients, venues by customer, busiest venues across all customers, APs behind on firmware (compared with the newest version seen for the same model) and a firmware-versions table,
-  licenses vs devices (headroom per customer), time to connect / failed connections / open incidents by customer (from the analytics service) and all open incidents across customers, plus throughput, clients, offline APs and critical alarms **by customer over time**.
-- **Licensing (MSP account only)**: the Customers overview gains **Account** (paid / trial, days left) and **Licenses** columns; the **MSP licensing** preset adds *Next account expiry*, *Subscriptions expiring (60 d)*, *Trial and expiry watch*, *Licenses by customer* and *MSP subscriptions*. Alert rules can use *Days until the nearest customer account expires* and *MSP subscriptions expiring within 60 days*.
-- **Customers (MSP) widgets**: *Customers overview* (table: status, venues, APs and switches online, clients, critical/major
-  alarms, connection success, open incidents), *Customer health* (list), clients / offline APs / alarms / critical alarms /
-  connection success by customer, *APs by customer*, KPIs (customers online, customers with issues, critical alarms) and
-  *Alarms across customers*. Preset: **MSP overview**.
-- **Whole wall for one customer:** add `?customer=<id>` to the viewer URL (the id is shown in `/api/config`; it is the customer
-  name in lower-case with dashes, e.g. `acme-corp`). Clicking a customer name in a table drills down the same way.
-- **Alerts name the customer.** In MSP mode a network-wide rule is evaluated per customer, so an alert reads
-  *"Critical alarm raised — Globex"*; *Per venue* alerts read *Customer / Venue*. There is also a *Per customer* tick and a
-  *Customers unreachable (MSP)* metric.
-- **Client experience analytics** are fetched for each customer; the unfiltered numbers add them up (success counts,
-  trends, incidents, top lists) and a customer-pinned widget shows that customer alone.
-
-Try it without an MSP tenant: `npm run demo:msp` simulates three customers (one deliberately unreachable).
-
-> **Cost.** Each customer is a full poll (venues, APs, switches, clients, alarms, plus any heavier sources your widgets need),
-> so a long customer list lengthens each cycle and uses more of your R1 API allowance. Raise *Poll every (sec)* for large lists.
-> Tenant-level data that spans customers (R1's MSP inventory/licensing APIs) is not used.
+---
 
 ## History
 
@@ -640,13 +617,12 @@ Open any report in a browser at `/report?id=<id>`, or build one ad hoc: `/report
 ## Configuration
 
 Settings come from environment variables, an optional `.env` file in the project folder, and the editor's
-**R1 connection** panel. Values saved in the editor override `.env`.
+**RUCKUS AI connection** panel. Values saved in the editor override `.env`.
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `R1_TENANT_ID` / `R1_CLIENT_ID` / `R1_CLIENT_SECRET` | — | RUCKUS One API application |
-| `R1_API_BASE` | `https://api.ruckus.cloud` | API host for your region |
-| `R1_OAUTH_BASE` | same as API base | token host |
+| `R1_TENANT_ID` / `R1_CLIENT_ID` / `R1_CLIENT_SECRET` | — | RUCKUS AI Application Token (client ID and secret; the variable names are kept from RUCKUS One NOC Wall; leave the tenant ID empty unless delegating) |
+| `R1_API_BASE` | `https://api.ruckus.cloud` | API host for your region (`api.eu.` / `api.asia.`) |
 | `PORT` | `8080` | HTTP port |
 | `POLL_SECONDS` | `60` | poll interval (minimum 15) |
 | `NOC_VIEW_KEY` | — | if set, every page/API needs `?key=` |
@@ -704,7 +680,7 @@ Other points:
   proxy such as nginx or Caddy — for anything beyond a trusted network, especially when keys are in use.
 - Secrets (API secret, SMTP password, webhook URLs) are stored in plain text in `data/` with owner-only permissions.
   Protect the server and its backups accordingly.
-- Use a **read-only** RUCKUS One role for the API key (see below).
+- Use a token whose RUCKUS AI role is read-only where possible (see below).
 - A `?key=` in a URL can end up in browser history and proxy logs; for kiosks that's usually acceptable, for shared
   machines it may not be.
 
@@ -738,9 +714,9 @@ Not included: automatic renewal (ACME / Let's Encrypt) — use a reverse proxy s
 ## Backup and restore
 
 Editor → **Backup & restore**. A backup is a single JSON file with your screens/views/schedules, alert rules, notification channels, ticker,
-scheduled reports, R1 connection and customers, and HTTPS settings. Metric history and generated report files are not included.
+scheduled reports, the RUCKUS AI connection, and HTTPS settings. Metric history and generated report files are not included.
 
-- **Configuration only** — contains **no credentials**: R1 secrets, notification passwords and webhook URLs, and the TLS key are left out. Plain
+- **Configuration only** — contains **no credentials**: RUCKUS AI secrets, notification passwords and webhook URLs, and the TLS key are left out. Plain
   JSON; safe to keep in version control or email to yourself.
 - **Full** — also contains the credentials and TLS key, so it is **always encrypted** (AES-256-GCM, key from your passphrase via scrypt). Without the
   passphrase it cannot be read; there is no recovery if you lose it.
@@ -775,13 +751,15 @@ From the command line (also works while the app is stopped): `node scripts/upgra
 
 ## Permissions and the API key
 
-The server only **reads**: it posts *query* requests for venues, APs, switches, clients, alarms, ports, networks,
-DPSK, guests, VLAN pools, identity groups and Wi-Fi-calling profiles. It never creates, changes or deletes anything in
-RUCKUS One. Create the API key with the **read-only** role.
+The server only **reads**. It exchanges the Application Token for a short-lived token (about 2 hours, renewed automatically),
+then calls `GET` on the RUCKUS AI REST service and `query` operations on the analytics service. It never creates, changes or
+deletes anything. The token belongs to a RUCKUS AI account: use an account whose role can read the SmartZone systems you want on the wall.
 
-> Some R1 tenants may need a slightly broader role for certain *query* endpoints (they use `POST`). If **Test
-> connection** reports `HTTP 403`, step the role up one level rather than jumping to administrator. If one widget
-> reports a 403, only the sources that widget needs are affected.
+| `Test connection` says | Meaning |
+|---|---|
+| HTTP 401 | wrong client ID or secret, a RUCKUS One key instead of a RUCKUS AI token, or a stale **Tenant ID** (clear it) |
+| HTTP 403 | the token's role cannot read that service |
+| *no answer within 45 s* | the network can't reach `auth.ruckus.cloud` or `api.ruckus.cloud` (firewall, proxy) |
 
 ---
 
@@ -796,7 +774,7 @@ A Debian 12 (64-bit) machine with the app preinstalled: 2 vCPU, 2 GB RAM, 8 GB t
 2. **Power on.** The console shows the address to use once the VM has an IP:
    `Wall display: https://<ip>/` and `Editor: https://<ip>/admin`. **Sign in as `noc`** with the console password you set. (A random access key is also generated on first boot and shown by `sudo sz-ai-noc-config`; it is only needed for scripts.)
    HTTPS uses a self-signed certificate created for the VM's names/IPs (browsers warn once); install your own under *HTTPS & certificate*. Plain HTTP on port 80 redirects to HTTPS.
-3. Open the editor, **R1 connection**, enter your RUCKUS One API details.
+3. Open the editor, **RUCKUS AI connection**, enter your Application Token.
 4. **Console login**: user `noc`, first-time password `noc` (you must change it immediately). Then `sudo sz-ai-noc-config` is a menu for: addresses and the access key, **static IP / DHCP**, host name,
    time zone, **regenerating the certificate** (after a name/IP change), resetting the editor key, **SSH on/off** (off by default), the `noc` password, growing the disk after enlarging the virtual disk, restart/log, reboot.
 5. **Updates**: the editor's *Software update* works as usual (the service restarts itself). Debian security updates install automatically (needs internet). Your settings live in `/var/lib/sz-ai-noc`; back them up with *Backup & restore*.
@@ -805,7 +783,7 @@ Notes: the editor needs a sign-in because the appliance is reachable over the ne
 VMware Tools (open-vm-tools) are installed; VirtualBox users may prefer the "Bridged Adapter" so displays can reach the VM.
 
 ### macOS app (.dmg)
-Drag **SZ-AI NOC Wall** to Applications and open it; an **R1** icon appears in the menu bar (Open Wall, Open Editor, Show Log, Start at Login, Quit). Universal (Apple silicon and Intel), Node.js included.
+Drag **SZ-AI NOC Wall** to Applications and open it; an **SZ** icon appears in the menu bar (Open Wall, Open Editor, Show Log, Start at Login, Quit). Universal (Apple silicon and Intel), Node.js included.
 The app is not notarized: the first time, right-click → Open, or run `xattr -dr com.apple.quarantine "/Applications/SZ-AI NOC Wall.app"`. The first launch opens the editor. The port is 8080, or the next free one up to 8099 (remembered in `~/Library/Application Support/SZ-AI NOC Wall/port`).
 Data and the running copy of the app are in `~/Library/Application Support/SZ-AI NOC Wall`, so in-place updates and new app versions keep your settings.
 
@@ -869,13 +847,14 @@ viewer URL in fullscreen on login.
 | Symptom | What to check |
 |---|---|
 | Chip says **connecting…** forever | the server isn't reachable from this browser (firewall, wrong address/port) |
-| Red banner **"R1 API unreachable"** | credentials/region wrong or R1 down — open the editor, **Test connection** |
+| Red banner **"RUCKUS AI unreachable"** | credentials/region wrong or RUCKUS AI down — open the editor, **Test connection** |
 | Red banner **"DATA STALE"** | the server stopped getting data for several poll intervals; check the server's terminal output |
 | Amber chip, "N source issues" | hover it: one source (e.g. `ports`) failed; widgets that don't use it still work |
-| A widget is empty / zero | click **Diagnostics** — compare the status values and field names with what the widget expects |
-| **Test connection → "did not issue a token"** | wrong Tenant ID / Client ID / secret, or wrong region |
-| **Test connection → HTTP 403** | the API key's role is too restrictive for that query |
-| Throughput shows *measuring…* | rates need two polls; if it never appears, run **Diagnostics** and check `clientTrafficSample` (clients need a MAC address and traffic counters) and `throughputEngine` (counts of clients tracked, changed, carried, idle, without a MAC or without counters) |
+| A widget is empty / zero | probably RUCKUS AI has no data for it — see [Which widgets work](#which-widgets-work-with-ruckus-ai) or run `npm run widgets:check` |
+| **Test connection → "token request failed"** | wrong client ID or secret (use a RUCKUS AI Application Token, not a RUCKUS One key) |
+| **Test connection → HTTP 401** | a stale Tenant ID is set (clear it), or the token was revoked |
+| **Test connection → HTTP 403** | the token's role is too restrictive |
+| Throughput shows *measuring…* (RUCKUS One data only) | rates need two polls; if it never appears, run **Diagnostics** and check `clientTrafficSample` (clients need a MAC address and traffic counters) and `throughputEngine` (counts of clients tracked, changed, carried, idle, without a MAC or without counters) |
 | Trend / history widgets say *collecting history* | they need a few polls (trends) or days (comparisons) of recorded data |
 | Alert fired but no notification | the rule needs **Notify** ticked, and a channel whose **Send from** allows that severity; use **Send test** |
 | Email test fails: *certificate* | tick **Allow self-signed cert** for an internal relay |
@@ -889,20 +868,17 @@ Server logs go to the terminal (or the service log). Failed notifications and fa
 
 ## Limits and known gaps
 
-- **Built against the API documentation; live-tenant tuning may be needed.** Core queries (venues, APs, switches,
-  clients, alarms) follow shapes already confirmed on a live tenant. Several fields — client SSID/OS/band names,
-  port status words, uptime format, DPSK/guest status values, AP group names, AP radio band strings — were mapped from the published schemas and should be
-  confirmed once on your tenant with **Diagnostics**.
-- No Data Studio content: application usage, Wi-Fi-calling call duration, airtime, roaming/session history, MCS rates and long-range history are not in the public API. Throughput and traffic are *measured* by the server between polls (see above) and only exist from first run.
+- **RUCKUS AI is read-only and aggregate.** There is no per-client list, switch-port data, DPSK, guest or network data, and no AP radio, switch CPU/memory/uptime values. See [Which widgets work](#which-widgets-work-with-ruckus-ai).
+- **Undocumented service.** The inventory, incident and Intent AI queries use RUCKUS AI's analytics GraphQL, which is not part of its published API (the REST part is). It can change without notice; only the widgets that use it are affected.
+- **Controller names** come from RUCKUS AI's onboarding record, not the SmartZone's own name, so they may differ from what you see in the controller UI.
+- Per-zone connection success is not available for SmartZone zones, so the per-zone Client experience widgets stay empty.
+- The whole AP list is read in under a second, but per-AP client counts and IP addresses are not (they need a slow per-zone call that returned errors), so those AP widgets are not offered.
+- The picker hides widgets with no RUCKUS AI source. The hidden list was measured on one tenant; run `npm run widgets:check` if yours looks different.
 - History begins at first run; weekly comparisons need a week of data (and per-customer trends start when MSP mode is enabled).
-- The analytics service and event log are not part of R1's published API (the analytics service is undocumented): they can change without notice, and only the widgets that use them are affected.
-- Switch-port events are *sampled* (a flap faster than the port-fetch interval can be missed); event kinds from R1's event log are inferred from message wording.
-- The Windows installer / zip and the MSP account mode on a real MSP tenant with live data have had limited testing.
+- The Windows installer / zip have had limited testing.
 - Alert state is in memory: restarting re-fires active alerts.
-- One server process. It serves one tenant, or — in MSP mode — every customer, polled three at a time. Large tenants (many thousands of ports/clients) make the first fetch slower; heavy
-  sources are cached.
+- One server process, one RUCKUS AI account.
 - Schedules and reports use the server's local time zone.
-- The venue filter doesn't apply to DPSK, guests, networks or identity groups.
 
 ---
 
@@ -931,8 +907,9 @@ All accept `?key=` when a view key is set. Those marked *admin* need localhost o
 
 ```
 server.js            HTTP server, SSE, shared rotation clock, scheduler
-lib/collect.js       polls RUCKUS One, caches slow sources
-lib/normalize.js     maps R1 rows to the app's field names (tolerant of variants)
+lib/rai.js           RUCKUS AI client and inventory/intents collectors
+lib/collect.js       polls RUCKUS AI, caches slow sources
+lib/normalize.js     maps RUCKUS One rows to the app's field names (used by the demo)
 lib/widgetgen.js     generates most of the widget catalog from tables of fields × measures × forms
 lib/widgets.js       hand-built widgets + catalog
 lib/rules.js         alert rules engine         lib/notify.js   channels + built-in SMTP client

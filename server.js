@@ -286,7 +286,7 @@ const handle = async (req, res) => {
         broadcast('config', { layout, control, serverNow: Date.now() }); broadcastData(); cycle();
         return json(res, 200, { layout });
       }
-      if (p === '/api/catalog') return json(res, 200, { widgets: widgets.catalog(), presets: dash.PRESETS });
+      if (p === '/api/catalog') return json(res, 200, { widgets: widgets.catalog(), presets: dash.presets() });
       if (p === '/api/data') return json(res, 200, buildData(venueParam(url)));
       if (p === '/api/stream') {
         res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });

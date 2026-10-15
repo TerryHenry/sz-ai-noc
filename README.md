@@ -5,15 +5,18 @@
 A **server-side NOC wall display for RUCKUS AI** (ruckus.cloud/ai) and, next, **RUCKUS SmartZone** controllers. One small
 server collects the data; any browser on your network — wall TVs, kiosks, laptops — shows live, customizable dashboards.
 
-> **Status: early development.** This project starts from [R1 NOC Wall](https://github.com/TerryHenry/r1-noc) — its dashboard engine,
-> editor, alerts and notifications, HTTPS, backup/restore, in-place upgrade and packaging (appliance, macOS, Windows) — and is being
-> re-pointed at RUCKUS AI (live inventory, incidents and Intent AI work; connect with an Application Token from Administration → Developers). The documentation in `docs/` still describes R1 NOC Wall and will be rewritten as the RUCKUS AI and
-> SmartZone data sources land.
+> **Status: early development (0.1).** Live data from **RUCKUS AI** works: SmartZone controllers and their onboarding state, zones, every AP and
+> switch, open incidents as alarms and Intent AI recommendations. Connect with a RUCKUS AI **Application Token**
+> (Administration → Developers). RUCKUS AI has no per-client, switch-port, DPSK or guest data, so widgets built on those are hidden; run
+> `npm run widgets:check` to see what works on your tenant. Built from [R1 NOC Wall](https://github.com/TerryHenry/r1-noc)'s dashboard engine,
+> editor, alerts, HTTPS, backup, upgrade and packaging. Docs: [Getting started](docs/GETTING_STARTED.md) · [User guide](docs/USER_GUIDE.md).
+> The screenshots in the docs were taken on the RUCKUS One version and will be retaken.
+
+<p align="center"><img src="docs/img/overview.png" alt="SZ-AI NOC Wall overview screen (demo data)" width="800"></p>
 
 ## Roadmap
 
-1. **RUCKUS AI** — network health and KPIs, connection experience by stage, incidents across controllers/zones, Intent AI
-   recommendations, top applications / SSIDs / APs, switch health, per system / zone / AP group views.
+1. **RUCKUS AI** — *in progress.* Done: controllers, zones, APs, switches, incidents, Intent AI. Next: more of the analytics (health KPIs per system), if RUCKUS AI returns them for SmartZone.
 2. **SmartZone** — live controller data (zones, APs, clients, WLANs, alarms, switches) from the SmartZone public API, one or many controllers.
 3. Branding, docs, appliance / Mac / Windows releases.
 
@@ -21,6 +24,7 @@ server collects the data; any browser on your network — wall TVs, kiosks, lapt
 
 ```bash
 npm run demo     # synthetic data, no credentials → http://<server-ip>:8080
+npm run demo:ai   # demo limited to what RUCKUS AI supplies (the screenshots)
 npm start        # real data
 ```
 

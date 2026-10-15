@@ -13,7 +13,7 @@
 //   Demo:      node scripts/widget-check.js --demo                    (offline regression: the demo data with everything RUCKUS AI does not supply blanked out)
 //              --demo --raw                                            (demo data as is, R1-shaped)
 //   Options:   --write-unavailable (save the NO DATA widget types to lib/widget-availability.json: the editor hides them)   --json (machine-readable)   --all (also list the OK ones)   --group "Name" (only that group)
-// Exit code 1 only when a widget is BROKEN. The history database goes to a scratch folder, never to ./data.
+// Exit code 1 when a widget is BROKEN, or when a default screen / offered preset holds a NO DATA widget. The history database goes to a scratch folder, never to ./data.
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -24,11 +24,12 @@ const opt = (n) => { const i = args.indexOf(`--${n}`); return i >= 0 ? args[i + 
 const env = process.env;
 
 if (!process.env.NOC_DATA_DIR) process.env.NOC_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'widget-check-'));
-if (flag('demo')) process.env.NOC_DEMO = '1';
+if (flag('demo')) { process.env.NOC_DEMO = '1'; if (!flag('raw')) process.env.NOC_DEMO_AI = '1'; }
 if (env.RAI_CLIENT_ID) { env.R1_CLIENT_ID = env.RAI_CLIENT_ID; env.R1_CLIENT_SECRET = env.RAI_CLIENT_SECRET || ''; env.R1_TENANT_ID = env.RAI_TENANT || ''; if (env.RAI_API) env.R1_API_BASE = env.RAI_API; }
 
 const collect = require('../lib/collect');
 const widgets = require('../lib/widgets');
+const dash = require('../lib/dashboard');
 const history = require('../lib/history');
 
 // Snapshot fields RUCKUS AI fills in (lib/collect.js pollRai). Anything else a widget reads while it is empty means NO DATA.
@@ -123,13 +124,19 @@ async function getSnapshot() {
   const results = widgets.catalog().filter((d) => !only || d.group === only).map((d) => ({ type: d.type, title: d.title, group: d.group, ...classify(d, S, ctx) }));
   const count = (s) => results.filter((r) => r.status === s).length;
   const summary = { widgets: results.length, ok: count('OK'), empty: count('EMPTY'), noData: count('NO DATA'), warmup: count('WARMUP'), na: count('N/A'), broken: count('BROKEN'), snapshot: { aps: (S.aps || []).length, switches: (S.switches || []).length, zones: (S.venues || []).length, controllers: (S.controllers || []).length, alarms: (S.alarms || []).length, intents: S.intents ? S.intents.total : null, analytics: Boolean(S.analytics), errors: S.errors || {} } };
+  // Screens people get without choosing widgets themselves: the defaults and the presets the editor offers. They must not hold NO DATA widgets.
+  const status = new Map(results.map((r) => [r.type, r.status]));
+  const offered = [...dash.DEFAULT.screens.map((sc) => ({ name: `default: ${sc.name}`, widgets: sc.widgets })), ...dash.presets().map((p) => ({ name: `preset: ${p.name}`, widgets: p.widgets }))];
+  const problems = offered.map((sc) => ({ name: sc.name, bad: sc.widgets.filter((x) => status.get(x.type) === 'NO DATA').map((x) => x.type), empty: sc.widgets.filter((x) => status.get(x.type) === 'EMPTY').map((x) => x.type) })).filter((x) => x.bad.length || x.empty.length);
+  const presetFail = problems.some((x) => x.bad.length);
+  if (!only && !flag('write-unavailable') && !flag('json')) { /* printed below */ }
   if (flag('write-unavailable')) {
     if (only) { console.error('--write-unavailable needs the full catalog: drop --group'); process.exit(2); }
     const file = path.join(__dirname, '..', 'lib', 'widget-availability.json');
     fs.writeFileSync(file, JSON.stringify({ note: 'Widget types with no RUCKUS AI data source. Written by scripts/widget-check.js --write-unavailable; the editor hides them. Types only, no customer data.', unavailable: results.filter((r) => r.status === 'NO DATA').map((r) => r.type).sort() }, null, 1) + '\n');
     console.error(`wrote ${path.relative(process.cwd(), file)} (${summary.noData} widget types)`);
   }
-  if (flag('json')) { console.log(JSON.stringify({ summary, coverage: cov, results }, null, 2)); process.exitCode = summary.broken ? 1 : 0; return; }   // no process.exit: piped output would be cut off
+  if (flag('json')) { console.log(JSON.stringify({ summary, coverage: cov, results }, null, 2)); process.exitCode = summary.broken || presetFail ? 1 : 0; return; }   // no process.exit: piped output would be cut off
 
   console.log(`Snapshot: ${summary.snapshot.aps} APs, ${summary.snapshot.switches} switches, ${summary.snapshot.zones} zones/groups, ${summary.snapshot.controllers} controllers, ${summary.snapshot.alarms} alarms, intents ${summary.snapshot.intents ?? 'n/a'}, analytics ${summary.snapshot.analytics ? 'yes' : 'no'}`);
   const errs = Object.entries(summary.snapshot.errors); if (errs.length) console.log('Source errors:\n' + errs.map(([k, e]) => `  ${k}: ${e}`).join('\n'));
@@ -142,5 +149,10 @@ async function getSnapshot() {
   }
   console.log('\nField coverage (rows with a value / rows):');
   for (const [k, c] of Object.entries(cov)) { const sparse = Object.entries(c.filled).filter(([, n]) => n === 0).map(([f]) => f); console.log(`  ${k}: ${c.rows} rows${sparse.length ? `; never filled: ${sparse.join(', ')}` : ''}`); }
-  process.exitCode = summary.broken ? 1 : 0;
+  if (!only) {
+    console.log(`\nDefault screens and offered presets: ${offered.length} checked`);
+    if (!problems.length) console.log('  none hold widgets without data');
+    for (const x of problems) console.log(`  ${x.bad.length ? 'NO DATA' : 'EMPTY  '} ${x.name}: ${[...x.bad, ...x.empty].join(', ')}`);
+  }
+  process.exitCode = summary.broken || presetFail ? 1 : 0;
 })().catch((e) => { console.error(e.stack || e.message); process.exit(2); });

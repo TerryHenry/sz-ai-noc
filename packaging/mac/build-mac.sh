@@ -41,7 +41,7 @@ codesign --force -s - "$APP/Contents/Resources/node"; codesign --force --deep -s
 echo "== dmg"
 DMG="dist/SZ-AI-NOC-Wall-$VER-mac.dmg"; rm -f "$DMG"; S="$B/dmg"; mkdir -p "$S"; cp -R "$APP" "$S/"; ln -s /Applications "$S/Applications"
 cat > "$S/READ ME FIRST.txt" <<R
-Drag "SZ-AI NOC Wall" to Applications and open it. It lives in the menu bar ("R1").
+Drag "SZ-AI NOC Wall" to Applications and open it. It lives in the menu bar ("SZ").
 The first time, macOS may say it cannot verify the developer: right-click the app, choose Open, then Open again
 (or run:  xattr -dr com.apple.quarantine "/Applications/SZ-AI NOC Wall.app").
 Your data is kept in ~/Library/Application Support/SZ-AI NOC Wall.

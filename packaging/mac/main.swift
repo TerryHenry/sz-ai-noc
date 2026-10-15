@@ -46,7 +46,7 @@ final class Delegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ n: Notification) {
         seedIfNeeded(); port = choosePort()
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.button?.title = "R1"; item.button?.toolTip = "SZ-AI NOC Wall"
+        item.button?.title = "SZ"; item.button?.toolTip = "SZ-AI NOC Wall"
         buildMenu(); start()
         if !fm.fileExists(atPath: support.appendingPathComponent(".opened").path) { fm.createFile(atPath: support.appendingPathComponent(".opened").path, contents: nil); DispatchQueue.main.asyncAfter(deadline: .now() + 2) { self.open("/admin") } }
     }

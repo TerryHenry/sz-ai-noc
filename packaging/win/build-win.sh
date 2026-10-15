@@ -29,7 +29,7 @@ cat > "$W/stage/README-Windows.txt" <<R
 SZ-AI NOC Wall $VER for Windows
 ============================
 1. Double-click SZ-AI-NOC-Wall.exe. A console window opens (minimise it - closing it stops the wall).
-   The first time, your browser opens the editor; enter your RUCKUS One API details under "R1 connection".
+   The first time, your browser opens the editor; enter your RUCKUS AI Application Token under "RUCKUS AI connection".
    Windows Firewall may ask to allow it - allow "Private networks" so other computers can open the wall.
 2. Wall:   http://localhost:8080/   (the port is shown in the window; it moves to 8081... if 8080 is busy)
    Editor: http://localhost:8080/admin

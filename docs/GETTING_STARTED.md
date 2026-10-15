@@ -13,7 +13,7 @@ the downloads on the [Releases page](../../releases) are ready to run.
 | **Windows (setup.exe or .zip)** | a Windows PC that stays on | [Path B](#path-b--macos-app-or-windows) |
 | **From source** | Linux, Raspberry Pi, developers — anything with Node.js 22.5+ | [Path C](#path-c--from-source) |
 
-Whichever you pick, finish with [the common steps](#then-the-same-for-everyone) (API key → connect → build screens → wall).
+Whichever you pick, finish with [the common steps](#then-the-same-for-everyone) (Application Token → connect → build screens → wall).
 
 ---
 
@@ -21,7 +21,7 @@ Whichever you pick, finish with [the common steps](#then-the-same-for-everyone) 
 
 A ready-made Debian machine with the app preinstalled (2 vCPU, 2 GB RAM, 8 GB disk; BIOS or UEFI).
 
-1. **Import** `SZ-AI-NOC-Wall-x.y.z.ova` — ESXi/vSphere: *Deploy OVF template*; VMware Workstation/Fusion and VirtualBox: *File → Import*; Proxmox: `qm importovf` — and attach its network adapter to a network that can reach the internet (RUCKUS One) and your displays.
+1. **Import** `SZ-AI-NOC-Wall-x.y.z.ova` — ESXi/vSphere: *Deploy OVF template*; VMware Workstation/Fusion and VirtualBox: *File → Import*; Proxmox: `qm importovf` — and attach its network adapter to a network that can reach the internet (RUCKUS AI) and your displays.
 2. **Power on.** After a minute the console shows the addresses to use: the wall (`https://<ip>/`) and the editor (`https://<ip>/admin`). It uses DHCP until you set a fixed address.
 3. **Set the `noc` password first.** At the VM console log in as `noc` with the password `noc` — you are forced to choose a new one (something long and mixed, e.g. `Wall-Display-2026`). Until you do, the web sign-in refuses, so nobody can get in with the default.
 4. **Sign in to the editor** at the editor address as **`noc`** with that new password. HTTPS uses a self-signed certificate until you install your own, so your browser will warn once.
@@ -31,7 +31,7 @@ Then continue with [the common steps](#then-the-same-for-everyone) — the appli
 
 ## Path B — macOS app or Windows
 
-**macOS** — open `SZ-AI-NOC-Wall-x.y.z-mac.dmg`, drag **SZ-AI NOC Wall** to *Applications*, and open it. The app is not notarized, so the first time: right-click it → **Open** → **Open** (or run `xattr -dr com.apple.quarantine "/Applications/SZ-AI NOC Wall.app"`). An **R1** icon appears in the menu bar with *Open Wall*, *Open Editor*, *Show Log*, *Start at Login* and *Quit*. The first launch opens the editor for you; otherwise choose **Open Editor**. Universal build — Apple silicon and Intel — with Node.js included.
+**macOS** — open `SZ-AI-NOC-Wall-x.y.z-mac.dmg`, drag **SZ-AI NOC Wall** to *Applications*, and open it. The app is not notarized, so the first time: right-click it → **Open** → **Open** (or run `xattr -dr com.apple.quarantine "/Applications/SZ-AI NOC Wall.app"`). An **SZ** icon appears in the menu bar with *Open Wall*, *Open Editor*, *Show Log*, *Start at Login* and *Quit*. The first launch opens the editor for you; otherwise choose **Open Editor**. Universal build — Apple silicon and Intel — with Node.js included.
 
 **Windows** — run `SZ-AI-NOC-Wall-x.y.z-win-x64-setup.exe` (per-user, no administrator rights; tick *Start when I sign in* if you want it), or unzip `…-win-x64.zip` anywhere and run `SZ-AI-NOC-Wall.exe`. The files are unsigned, so SmartScreen may say "unknown publisher" — choose *More info → Run anyway*. Windows Firewall will ask once: allow **private networks** so other computers can open the wall. A console window shows the addresses; minimise it (closing it stops the wall). The first run opens the editor for you. *(The Windows build has not yet been tested on a real Windows machine — please report problems.)*
 
@@ -58,52 +58,49 @@ Then continue with [the common steps](#then-the-same-for-everyone).
 
 ## Then the same for everyone
 
-### 1. Create a RUCKUS One API key
+### 1. Create a RUCKUS AI Application Token
 
-The server talks to RUCKUS One with an **API application** (client credentials). In RUCKUS One:
+The server reads your SmartZone data through **RUCKUS AI** (`ruckus.cloud/ai`) with an **Application Token** (client credentials). In RUCKUS AI:
 
-1. Go to **Administration → Account Management → Settings** (older releases: *API Keys*; menu names can differ) and add an **Application Token**. Give it a name like `noc-wall`.
-2. Choose a **read-only role** — this app only ever *reads*. (See [Permissions](USER_GUIDE.md#permissions-and-the-api-key).)
-3. Copy the **Tenant ID**, **Client ID** and **Client Secret**. The secret is shown once.
-4. Note your **region**: North America `https://api.ruckus.cloud`, Europe `https://api.eu.ruckus.cloud`, Asia `https://api.asia.ruckus.cloud`.
+1. Go to **Administration → Developers → Application Tokens** and create a token. Give it a name like `noc-wall`.
+2. Copy the **Client ID** and **Client Secret**. The secret is shown once.
+3. Note your **region**: North America `https://api.ruckus.cloud`, Europe `https://api.eu.ruckus.cloud`, Asia `https://api.asia.ruckus.cloud`.
 
-> **MSP?** Create the token in the **MSP's own account** (not under *MSP Customers*) and one key covers all your customers — see [MSP mode](USER_GUIDE.md#msp-mode-multiple-customers).
+> **RUCKUS One API keys do not work here.** They are a different credential from a RUCKUS AI Application Token; using one gives HTTP 401.
+> Leave **Tenant ID** empty unless you are an MSP reading a customer's account (then enter that customer's tenant ID; the app sends it as `x-rks-tenantid`).
 
-### 2. Connect the server to your tenant
+### 2. Connect the server to RUCKUS AI
 
-Open the editor (the address for your path above) and expand **R1 connection**:
+Open the editor (the address for your path above) and expand **RUCKUS AI connection**:
 
 | Field | What to enter |
 |---|---|
-| Tenant ID | from step 1 |
+| Tenant ID | leave empty (only for delegated MSP access) |
 | Client ID / Client secret | from step 1 |
-| Region | pick yours (fills in both URLs) |
+| Region | pick yours |
 | Poll every (sec) | `60` is a good default (minimum 15) |
 
-The fields above are for the default choice, **One RUCKUS One account**. The first drop-down switches to the MSP modes (shown below in *MSP — one key for all my customers*).
-
-![R1 connection — MSP mode](img/editor-connection.png)
-
-Click **Save connection**, then **Test connection**. You should see *"Connected — N venues: …"*. The secret is stored on the server (owner-readable only) and is never sent back to the browser.
+Click **Save connection**, then **Test connection**. You should see *"Connected — N onboarded controllers, M zones"*. The secret is stored on the server (owner-readable only) and is never sent back to the browser.
 
 > From source you can also use a `.env` file instead of the GUI — see [Configuration](USER_GUIDE.md#configuration). Values saved in the GUI override `.env`.
 
 ### 3. Check the data looks right
 
-Open the wall address. Within a minute the chip in the top bar should read **live**.
+Open the wall address. Within a minute the chip in the top bar should read **live**. The default screens show your SmartZone controllers (with their RUCKUS AI onboarding state), zones and switch groups, every AP and switch with status, model and firmware, open incidents as alarms, and Intent AI recommendations.
 
-The first time you run against a real tenant, click **Diagnostics** (in the *R1 connection* panel). It shows exactly
-what R1 returns — status values, field names, a sample row of each kind. If a widget shows zero or "Unknown" where it
-shouldn't, that report tells you why. (A few field mappings were built from the API documentation but not yet
-confirmed on every tenant; Diagnostics is how they get fixed in minutes.)
+![Overview screen](img/overview.png)
+
+If a source fails the chip says how many "source issues" there are; click **Diagnostics** in the *RUCKUS AI connection* panel to see the exact error and counts. **HTTP 401** means the token is wrong or a stale Tenant ID is set.
+
+**Not everything from RUCKUS One exists in RUCKUS AI.** There is no per-client list, and no switch-port, DPSK, guest, Wi-Fi-networks or Wi-Fi-calling data, so widgets built on those are hidden from the picker (tick *Show … without RUCKUS AI data* to see them; they stay empty). To check your own tenant, run `npm run widgets:check` — see [Which widgets work](USER_GUIDE.md#which-widgets-work-with-ruckus-ai).
 
 ### 4. Build your screens
 
-In the editor, the three starter screens — **Dashboard**, **Wi-Fi** and **Switch** — are modelled on RUCKUS One's own Dashboard, Wireless/WLAN report and Wired report, so they're a familiar starting point.
+In the editor, the four starter screens — **Overview**, **Zones**, **Switches** and **Intent AI** — are built from what RUCKUS AI provides for SmartZone.
 
-- **+ Add widget** opens a searchable catalog of 1,000+ widgets. Try searching `dpsk`, `vlan`, `poe`, `guest`, `ssid`.
+- **+ Add widget** opens a searchable catalog of widgets that work with RUCKUS AI data. Try searching `controller`, `intent`, `firmware`, `model`, `zone`.
 - **Duplicate** or **Copy to** (screen header) makes a copy of any screen, here or in another view; rename it with the *Screen name* box.
-- **+ Preset screen…** adds ready-made screens (RUCKUS One Dashboard / Wi-Fi / Switch, Overview (classic), Switching, **Switch events**, Wi-Fi Calling, AP load (airtime stand-in), Connection health / Top talkers and failures / Incidents (experimental analytics), Wireless performance, Student experience, RF coverage, Throughput, Client mix, and — for MSPs — **MSP overview, MSP fleet statistics, MSP rankings, MSP trends, MSP licensing**).
+- **+ Preset screen…** adds ready-made screens (Overview (classic), Switching, **Switch events**, Wi-Fi Calling, AP load (airtime stand-in), Connection health / Top talkers and failures / Incidents (experimental analytics), Wireless performance, Student experience, RF coverage, Throughput, Client mix, and — for MSPs — **MSP overview, MSP fleet statistics, MSP rankings, MSP trends, MSP licensing**).
 - Leave **Auto-fit (no gaps)** ticked and the screen tiles itself to fill the display.
 - Click **Save & apply** — every open display updates immediately.
 
@@ -119,8 +116,7 @@ Tips for a kiosk:
 
 ### 6. Turn on alerts (recommended)
 
-In the editor, open **Alerts**. Six sensible rules are already there (critical alarm, switch offline, many APs offline,
-switch CPU, PoE budget, stale data). Rules marked **Take over screens** cover every display with a full-screen banner
+In the editor, open **Alerts**. Sensible rules are already there (critical alarm, switch offline, many APs offline, stale data); rules on data RUCKUS AI does not provide, such as switch CPU, never fire. Rules marked **Take over screens** cover every display with a full-screen banner
 until someone acknowledges it.
 
 To get alerts outside the NOC, open **Notifications**, add a channel (Slack, Teams, email or webhook), and press
@@ -129,7 +125,7 @@ To get alerts outside the NOC, open **Notifications**, add a channel (Slack, Tea
 ### 7. Keep it running
 
 - **Appliance:** nothing to do — it is a service and restarts itself.
-- **Mac app:** menu bar **R1 → Start at Login**.
+- **Mac app:** menu bar **SZ → Start at Login**.
 - **Windows:** tick *Start when I sign in* in the installer, or run `install-autostart.cmd` from the portable zip.
 - **From source:** run it under a process manager (systemd on Linux, launchd on macOS) — templates are in the [User guide](USER_GUIDE.md#running-it-permanently).
 
