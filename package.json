@@ -10,6 +10,7 @@
     "start": "node server.js",
     "demo": "NOC_DEMO=1 node server.js",
     "demo:msp": "NOC_DEMO=1 NOC_DEMO_MSP=1 node server.js",
+    "widgets:check": "node scripts/widget-check.js",
     "package": "node scripts/package.js",
     "upgrade": "node scripts/upgrade.js"
   },
