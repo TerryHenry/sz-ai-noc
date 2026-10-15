@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Build the Windows distribution from any machine with Node.js ≥ 24:  packaging/win/build-win.sh
+#   dist/SZ-AI-NOC-Wall-<ver>-win-x64.zip        portable: unzip anywhere, run SZ-AI-NOC-Wall.exe
+#   dist/SZ-AI-NOC-Wall-<ver>-win-x64-setup.exe  per-user installer (needs NSIS' makensis, or Docker which is used to run it)
+# SZ-AI-NOC-Wall.exe is Node.js with the small launcher embedded (a "single executable application"); the app itself stays in the app\ folder.
+# NOTE: the exe is not code-signed, so Windows SmartScreen shows "unknown publisher" once (More info → Run anyway).
+set -euo pipefail
+cd "$(dirname "$0")/../.."
+VER=$(node -p "require('./package.json').version"); NODE_VER=${NODE_VER:-$(node -v)}
+[ "$(node -v)" = "$NODE_VER" ] || { echo "The host Node ($(node -v)) must be the same version as the bundled one ($NODE_VER): the embedded blob is version-specific." >&2; exit 1; }
+CACHE=packaging/.cache; mkdir -p "$CACHE" dist; W="$CACHE/win-build"; rm -rf "$W"; mkdir -p "$W/stage/app"
+echo "== release package"; npm run -s package >/dev/null
+Z="$CACHE/node-win-x64.zip"
+if [ ! -f "$Z" ] || [ "$(cat "$CACHE/node-win.version" 2>/dev/null)" != "$NODE_VER" ]; then
+  echo "== downloading Node $NODE_VER (win-x64)"; curl -fL --progress-bar -o "$Z" "https://nodejs.org/dist/$NODE_VER/node-$NODE_VER-win-x64.zip"
+  curl -fsSL "https://nodejs.org/dist/$NODE_VER/SHASUMS256.txt" | grep "node-$NODE_VER-win-x64.zip" | awk '{print $1"  '"$Z"'"}' | shasum -a 256 -c -; echo "$NODE_VER" > "$CACHE/node-win.version"
+fi
+unzip -q -j "$Z" "node-$NODE_VER-win-x64/node.exe" "node-$NODE_VER-win-x64/LICENSE" -d "$W"
+echo "== embedding the launcher"
+cp packaging/win/launcher.js "$W/"; echo '{"main":"launcher.js","output":"sea.blob","disableExperimentalSEAWarning":true,"useCodeCache":false,"useSnapshot":false}' > "$W/sea.json"
+( cd "$W" && node --experimental-sea-config sea.json >/dev/null )
+python3 packaging/win/pe_prepare.py "$W/node.exe" "$W/node-unsigned.exe"
+echo "== icon and file properties"
+[ -d "$CACHE/tools/node_modules/resedit" ] || ( mkdir -p "$CACHE/tools" && cd "$CACHE/tools" && npm init -y >/dev/null 2>&1 && npm install resedit@2 --silent )
+APP_VERSION="$VER" node packaging/win/set-icon.js "$W/node-unsigned.exe" packaging/icon/icon.ico "$W/SZ-AI-NOC-Wall.exe" "$CACHE/tools"
+npx --yes postject "$W/SZ-AI-NOC-Wall.exe" NODE_SEA_BLOB "$W/sea.blob" --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 >/dev/null
+cp "$W/SZ-AI-NOC-Wall.exe" "$W/stage/"; cp packaging/icon/icon.ico "$W/stage/SZ-AI-NOC-Wall.ico"; cp "$W/LICENSE" "$W/stage/NODE_LICENSE.txt"; tar -xzf "dist/sz-ai-noc-$VER.tgz" -C "$W/stage/app" --strip-components=1
+cat > "$W/stage/README-Windows.txt" <<R
+SZ-AI NOC Wall $VER for Windows
+============================
+1. Double-click SZ-AI-NOC-Wall.exe. A console window opens (minimise it - closing it stops the wall).
+   The first time, your browser opens the editor; enter your RUCKUS One API details under "R1 connection".
+   Windows Firewall may ask to allow it - allow "Private networks" so other computers can open the wall.
+2. Wall:   http://localhost:8080/   (the port is shown in the window; it moves to 8081... if 8080 is busy)
+   Editor: http://localhost:8080/admin
+3. Start automatically: use install-autostart.cmd (portable zip) or tick the option in the installer.
+4. Updates: in the editor, "Software update" installs a new release file in place. Your settings are kept in
+   %LOCALAPPDATA%\SZ-AI NOC Wall\data (portable zip: the data folder next to the exe).
+SmartScreen: the exe is unsigned. If Windows says "unknown publisher": More info, then Run anyway.
+R
+cp "$W/stage/README-Windows.txt" "$W/readme.tmp"
+# portable zip
+P="$W/portable/SZ-AI NOC Wall"; mkdir -p "$P"; cp -R "$W/stage/." "$P/"; : > "$P/portable.txt"
+printf '@echo off\r\nreg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "SZ-AI NOC Wall" /t REG_SZ /d "\\"%%~dp0SZ-AI-NOC-Wall.exe\\"" /f\r\necho SZ-AI NOC Wall will start when you sign in.\r\npause\r\n' > "$P/install-autostart.cmd"
+printf '@echo off\r\nreg delete "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "SZ-AI NOC Wall" /f\r\necho Removed.\r\npause\r\n' > "$P/uninstall-autostart.cmd"
+ZIP="dist/SZ-AI-NOC-Wall-$VER-win-x64.zip"; rm -f "$ZIP"; ( cd "$W/portable" && zip -qr "$OLDPWD/$ZIP" "SZ-AI NOC Wall" )
+( cd dist && shasum -a 256 "SZ-AI-NOC-Wall-$VER-win-x64.zip" | tee "SZ-AI-NOC-Wall-$VER-win-x64.zip.sha256" )
+NSIS=""
+if command -v makensis >/dev/null; then NSIS="local"
+elif command -v docker >/dev/null && docker info >/dev/null 2>&1; then
+  docker image inspect szai-nsis >/dev/null 2>&1 || printf 'FROM debian:bookworm-slim\nRUN apt-get update -qq && apt-get install -y -qq nsis >/dev/null && rm -rf /var/lib/apt/lists/*\n' | docker build -q -t szai-nsis - >/dev/null
+  NSIS="docker"
+fi
+if [ -n "$NSIS" ]; then
+  echo "== installer ($NSIS makensis)"; EXE="dist/SZ-AI-NOC-Wall-$VER-win-x64-setup.exe"
+  if [ "$NSIS" = local ]; then makensis -V1 -DVERSION="$VER" -DSTAGE="$PWD/$W/stage" -DOUTFILE="$PWD/$EXE" -DICON="$PWD/packaging/icon/icon.ico" packaging/win/installer.nsi
+  else docker run --rm -v "$PWD":/w -w /w szai-nsis makensis -V1 -DVERSION="$VER" -DSTAGE="/w/$W/stage" -DOUTFILE="/w/$EXE" -DICON="/w/packaging/icon/icon.ico" packaging/win/installer.nsi; fi
+  ( cd dist && shasum -a 256 "SZ-AI-NOC-Wall-$VER-win-x64-setup.exe" | tee "SZ-AI-NOC-Wall-$VER-win-x64-setup.exe.sha256" )
+else echo "(no makensis or Docker — skipped the installer)"; fi

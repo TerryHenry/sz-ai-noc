@@ -1,0 +1,34 @@
+{
+  "name": "sz-ai-noc",
+  "version": "0.1.0",
+  "description": "SZ-AI NOC Wall — a server-side NOC wall display for RUCKUS AI (ruckus.cloud/ai) and RUCKUS SmartZone.",
+  "private": true,
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "demo": "NOC_DEMO=1 node server.js",
+    "demo:msp": "NOC_DEMO=1 NOC_DEMO_MSP=1 node server.js",
+    "package": "node scripts/package.js",
+    "upgrade": "node scripts/upgrade.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TerryHenry/sz-ai-noc.git"
+  },
+  "homepage": "https://github.com/TerryHenry/sz-ai-noc#readme",
+  "bugs": {
+    "url": "https://github.com/TerryHenry/sz-ai-noc/issues"
+  },
+  "keywords": [
+    "ruckus",
+    "ruckus-ai",
+    "smartzone",
+    "noc",
+    "dashboard",
+    "analytics",
+    "wifi"
+  ],
+  "license": "MIT"
+}

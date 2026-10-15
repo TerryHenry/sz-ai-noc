@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" href="/icon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<title>SZ-AI NOC Wall Editor</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+  body { overflow: auto; height: auto; min-height: 100vh; display: block; font-size: 15px; }
+  html { font-size: 15px; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 1rem; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: .6rem; padding: 1rem; margin-bottom: 1rem; }
+  label { display: inline-flex; flex-direction: column; gap: .2rem; font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  input, select, button { font: inherit; font-size: .95rem; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: .4rem; padding: .35rem .55rem; }
+  input[type=number] { width: 4.5rem; }
+  button { cursor: pointer; } button:hover { border-color: var(--info); }
+  button.primary { background: var(--info); border-color: var(--info); color: #fff; font-weight: 600; }
+  button.danger:hover { border-color: var(--bad); color: var(--bad); }
+  .tabs { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: .8rem; align-items: center; }
+  .tabs button.on { border-color: var(--info); color: var(--info); }
+  .wrow { display: flex; flex-wrap: wrap; gap: .6rem; align-items: flex-end; padding: .6rem; border: 1px solid var(--line); border-radius: .5rem; margin-bottom: .5rem; background: var(--panel-2); }
+  .wrow .ttl { flex: 1 1 14rem; font-weight: 600; font-size: 1rem; color: var(--text); text-transform: none; letter-spacing: 0; }
+  .wrow .ttl small { display: block; color: var(--faint); font-weight: 400; font-size: .75rem; }
+  .picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: .4rem; margin-top: .6rem; }
+  .picker button { text-align: left; }
+  .picker h4 { grid-column: 1 / -1; margin: .6rem 0 0; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .picker button { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
+  .picker button.is-used { border-color: color-mix(in srgb, var(--ok) 35%, var(--line)); }
+  .pgroup { margin-top: .5rem; border: 1px solid var(--line); border-radius: .5rem; padding: .1rem .7rem .5rem; background: var(--panel-2); }
+  .pgroup summary { cursor: pointer; font-weight: 600; padding: .4rem 0; }
+  .pgroup .cnt { color: var(--faint); font-weight: 400; font-size: .8rem; margin-left: .5rem; }
+  #pq { flex: 1; min-width: 14rem; }
+  .picker button { align-items: flex-start; text-align: left; }
+  .picker button span:first-child { white-space: normal; line-height: 1.25; overflow-wrap: anywhere; }
+  .picker button .tag { margin-top: .15rem; }
+  .tag { font-size: .7rem; color: var(--faint); white-space: nowrap; }
+  .tag.used { color: var(--ok); }
+  .picker-head { margin-top: .8rem; color: var(--muted); display: flex; gap: 1rem; align-items: center; }
+  label.inline { flex-direction: row; align-items: center; gap: .4rem; text-transform: none; letter-spacing: 0; font-size: .85rem; }
+  .thr-group { display: flex; gap: .6rem; } .thr { display: flex; gap: .25rem; } .thr input { width: 5rem; } .days { display: flex; gap: .5rem; flex-wrap: wrap; }
+  .plcols { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: .7rem; margin: .7rem 0; }
+  .plcol { background: var(--panel-2); border: 1px solid var(--line); border-radius: .5rem; padding: .6rem .7rem; } .plcol h4 { margin: 0 0 .4rem; }
+  .plitem { display: flex; justify-content: space-between; align-items: center; gap: .4rem; padding: .25rem 0; border-top: 1px solid var(--line); }
+  .plitem button { padding: .1rem .45rem; } .plbtns { white-space: nowrap; }
+  .plpick { display: flex; flex-wrap: wrap; gap: .3rem 1.1rem; }
+  .dz { border: 1px solid var(--info); border-radius: .6rem; padding: .8rem; margin-bottom: 1rem; background: color-mix(in srgb, var(--info) 5%, var(--panel)); }
+  .dz-bar { display: flex; gap: .8rem; align-items: center; flex-wrap: wrap; margin-bottom: .6rem; } .dz-sub { color: var(--faint); font-size: .8rem; }
+  .dz-note { background: var(--panel-2); border-left: 3px solid var(--warn); padding: .4rem .7rem; border-radius: .3rem; font-size: .85rem; color: var(--muted); margin-bottom: .6rem; }
+  .dz-wrap { max-width: 980px; }
+  .dz-canvas { position: relative; border: 1px solid var(--line); border-radius: .4rem; background-color: var(--bg); outline: none;
+    background-image: linear-gradient(to right, var(--line) 1px, transparent 1px), linear-gradient(to bottom, var(--line) 1px, transparent 1px); background-size: calc(100% / 12) 100%, 100% 36px; }
+  .dz-canvas:focus { border-color: var(--info); }
+  .dz-b { position: absolute; box-sizing: border-box; border: 2px solid hsl(var(--h) 55% 55%); background: hsl(var(--h) 45% 30% / .55); border-radius: .35rem; padding: .25rem .4rem; overflow: hidden; cursor: grab; user-select: none; touch-action: none; transition: left .12s, top .12s, width .12s, height .12s; }
+  .dz-b.sel { border-color: var(--info); box-shadow: 0 0 0 2px var(--info); z-index: 2; }
+  .dz-t { font-size: .78rem; font-weight: 600; line-height: 1.15; } .dz-m { font-size: .7rem; color: var(--muted); }
+  .dz-h { position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; background: linear-gradient(135deg, transparent 50%, var(--text) 50%); opacity: .6; border-bottom-right-radius: .25rem; }
+  .dz-b.dz-chart { display: flex; flex-direction: column; background: var(--panel); border-color: color-mix(in srgb, hsl(var(--h) 55% 55%) 55%, var(--line)); padding: .2rem .35rem .25rem; }
+  .dz-b.dz-chart .dz-t { font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: none; }
+  .dz-b.dz-chart .dz-m { position: absolute; right: 22px; bottom: 2px; font-size: .62rem; color: var(--faint); }
+  .dz-cb { flex: 1; min-height: 0; overflow: hidden; opacity: .9; pointer-events: none; }
+  .sp-kpi { display: flex; flex-direction: column; justify-content: center; height: 100%; } .sp-kpi b { font-size: 1.7rem; line-height: 1; font-variant-numeric: tabular-nums; } .sp-kpi small { color: var(--ok); font-size: .65rem; margin-top: .15rem; }
+  .sp-donut { display: flex; align-items: center; gap: .4rem; height: 100%; } .sp-donut svg { height: 100%; max-width: 55%; } .sp-leg { display: flex; flex-direction: column; gap: .2rem; flex: 1; } .sp-leg i { display: flex; align-items: center; gap: .25rem; } .sp-leg s { width: .5rem; height: .5rem; border-radius: 2px; flex: none; } .sp-leg u { height: .3rem; background: var(--line); border-radius: 2px; }
+  .sp-bars { display: flex; flex-direction: column; justify-content: space-around; height: 100%; gap: .15rem; } .sp-bars div { display: flex; align-items: center; gap: .3rem; } .sp-bars u { width: 22%; height: .3rem; background: var(--line); border-radius: 2px; flex: none; } .sp-bars span { flex: 1; height: .5rem; background: var(--panel-2); border-radius: 99px; overflow: hidden; } .sp-bars em { display: block; height: 100%; background: var(--c1); border-radius: 99px; }
+  .sp-svg { width: 100%; height: 100%; display: block; } .sp-cols { display: flex; align-items: flex-end; gap: 2px; height: 100%; } .sp-cols i { flex: 1; background: var(--c1); border-radius: 1px 1px 0 0; opacity: .85; }
+  .sp-table { display: flex; flex-direction: column; gap: .25rem; height: 100%; } .sp-table div { display: grid; grid-template-columns: repeat(4, 1fr); gap: .3rem; border-top: 1px solid var(--line); padding-top: .2rem; } .sp-table div.h { border: 0; } .sp-table u { height: .3rem; background: var(--line); border-radius: 2px; } .sp-table .h u { background: var(--muted); opacity: .6; }
+  .sp-list { display: flex; flex-direction: column; gap: .25rem; height: 100%; } .sp-list div { display: flex; align-items: center; gap: .3rem; padding: .2rem .3rem; background: var(--panel-2); border-left: 3px solid var(--line); border-radius: .25rem; } .sp-list s { width: 1.2rem; height: .35rem; background: var(--muted); opacity: .5; border-radius: 2px; flex: none; } .sp-list u { height: .3rem; background: var(--line); border-radius: 2px; }
+  .sp-gauge { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; } .sp-gauge svg { width: 100%; max-height: 70%; } .sp-gauge b { font-size: 1.1rem; color: var(--ok); }
+  .sp-stack { display: flex; flex-direction: column; justify-content: center; gap: .5rem; height: 100%; } .sp-stack u { display: block; width: 40%; height: .3rem; background: var(--line); border-radius: 2px; margin-bottom: .15rem; } .sp-stack span { display: flex; height: .8rem; background: var(--panel-2); border-radius: .25rem; overflow: hidden; } .sp-stack em { display: block; height: 100%; }
+  .sp-msg { display: flex; flex-direction: column; justify-content: center; gap: .4rem; height: 100%; border-left: 4px solid var(--info); padding-left: .5rem; } .sp-msg u, .sp-wx u { height: .5rem; background: var(--line); border-radius: 2px; display: block; }
+  .sp-wx { display: flex; flex-direction: column; justify-content: center; gap: .4rem; height: 100%; } .sp-wx b { font-size: 1.6rem; } .sp-wx .d { display: flex; gap: .3rem; } .sp-wx .d i { flex: 1; height: 1.2rem; background: var(--panel-2); border-radius: .25rem; }
+  .dz-pv select { font-size: .85rem; }
+  .dz-insp { display: flex; gap: .7rem; align-items: flex-end; flex-wrap: wrap; margin-top: .6rem; min-height: 2.4rem; }
+  .wrow.flash { outline: 2px solid var(--info); }
+  .top { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; }
+  #msg { margin-left: auto; font-size: .9rem; }
+  .ok { color: var(--ok); } .bad { color: var(--bad); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top panel">
+    <label>Dashboard title<input id="title" maxlength="60"></label>
+    <label>Rotate every (sec, 0 = off)<input id="rot" type="number" min="0" max="3600"></label>
+    <span id="msg"></span>
+    <a class="chip" id="view" href="/">← Viewer</a> <span id="signedIn" style="font-size:.85rem;color:var(--muted);margin-left:.6rem"></span>
+    <a class="chip" id="launch" href="/launch.html">Multi-display launcher</a>
+    <button id="reset" class="danger" title="Replace all screens and widgets with the built-in defaults">Reset to defaults</button>
+    <button class="primary" id="save">Save &amp; apply</button>
+  </div>
+  <details class="panel" id="conn">
+    <summary style="cursor:pointer;font-weight:600">R1 connection <span id="connState" style="font-weight:400;color:var(--muted);margin-left:.6rem"></span></summary>
+    <div class="top" style="margin:.7rem 0">
+      <label>How do you connect to RUCKUS One?
+        <select id="s_mode"><option value="single">One RUCKUS One account</option><option value="msp">MSP — one key for all my customers</option><option value="customers">MSP — a separate key for each customer</option></select></label>
+      <label>Poll every (sec)<input id="s_poll" type="number" min="15" max="3600"></label>
+    </div>
+    <div id="modeSingle">
+    <p style="color:var(--muted);margin:.6rem 0">Create an API application in RUCKUS One (Administration &rarr; Account Management &rarr; API Keys). The secret is stored on this server in <code>data/settings.json</code> and is never sent back to the browser.</p>
+    <div class="top">
+      <label>Tenant ID<input id="s_tenant" size="34" autocomplete="off" spellcheck="false"></label>
+      <label>Client ID<input id="s_client" size="30" autocomplete="off" spellcheck="false"></label>
+      <label>Client secret<input id="s_secret" type="password" size="30" autocomplete="new-password" placeholder="(unchanged)"></label>
+      <label>Region<select id="s_region"><option value="https://api.ruckus.cloud">North America</option><option value="https://api.eu.ruckus.cloud">Europe</option><option value="https://api.asia.ruckus.cloud">Asia</option><option value="custom">Custom…</option></select></label>
+      <label>API base URL<input id="s_api" size="30" spellcheck="false"></label>
+      <label>OAuth base URL<input id="s_oauth" size="30" spellcheck="false"></label>
+    </div>
+    <div style="display:flex;gap:.6rem;align-items:center;margin-top:.8rem">
+      <button class="primary" id="s_save">Save connection</button>
+      <button id="s_test">Test connection</button>
+      <span id="s_msg"></span>
+    </div>
+    </div>
+    <div id="modeMsp" style="display:none">
+      <div style="color:var(--muted);font-size:.85rem;margin-bottom:.4rem">Create an Application Token in the <b>MSP's own account</b> (Administration → Account Management → Settings, while viewing the MSP tenant — not under "MSP Customers"). The app lists your customers and reads each one through R1's delegated access, so you need only this one key.</div>
+    <div class="top">
+      <label>MSP tenant ID<input id="mspT" size="34" autocomplete="off" spellcheck="false"></label>
+      <label>Client ID<input id="mspC" size="30" autocomplete="off" spellcheck="false"></label>
+      <label>Client secret<input id="mspS" type="password" size="26" autocomplete="new-password"></label>
+      <label>Region<select id="mspR"><option value="https://api.ruckus.cloud">North America</option><option value="https://api.eu.ruckus.cloud">Europe</option><option value="https://api.asia.ruckus.cloud">Asia</option></select></label>
+      <button class="primary" id="mspAcctSave">Save &amp; find customers</button><span id="mspAcctMsg"></span>
+    </div>
+    <div id="mspFound" style="margin-top:.5rem"></div>
+    </div>
+    <div id="modeCust" style="display:none">
+    <div style="color:var(--muted);font-size:.85rem;margin-bottom:.4rem">Create an API application inside each customer's own account and add it here. Use this for customers your MSP account does not manage.</div>
+    <div id="mspRows"></div>
+    <div style="display:flex;gap:.6rem;align-items:center;margin-top:.8rem">
+      <button id="mspAdd">+ Add customer</button>
+      <button class="primary" id="mspSave">Save customers</button>
+      <span id="mspMsg"></span>
+    </div>
+    </div>
+    <div style="display:flex;gap:.6rem;align-items:center;margin-top:.8rem"><button id="s_diag">Diagnostics</button> <span id="s_msg2" style="color:var(--muted);font-size:.85rem">Shows exactly what R1 returns for your tenant.</span></div>
+  <pre id="diag" style="display:none;max-height:22rem;overflow:auto;background:var(--panel-2);border:1px solid var(--line);border-radius:.4rem;padding:.6rem;margin-top:.8rem;font-size:.75rem"></pre>
+  </details>
+  
+  <details class="panel" id="authPanel">
+    <summary style="cursor:pointer;font-weight:600">Editor login <span id="authState" style="font-weight:400;color:var(--muted);margin-left:.6rem"></span></summary>
+    <p style="color:var(--muted);margin:.6rem 0">Sign in to the editor with a user name and password instead of the <code>?key=</code> address. Create an account here; on the virtual appliance the machine's <code>noc</code> user already works. The password is stored hashed on this server.</p>
+    <div class="top">
+      <label>User name<input id="authUser" size="18" autocomplete="off"></label>
+      <label>New password (8+ characters)<input id="authPass" type="password" size="24" autocomplete="new-password"></label>
+      <button class="primary" id="authSave">Save account</button><button id="authRemove" class="danger">Remove account</button><span id="authMsg"></span>
+    </div>
+  </details>
+  <details class="panel" id="secPanel">
+    <summary style="cursor:pointer;font-weight:600">HTTPS &amp; certificate <span id="tlsState" style="font-weight:400;color:var(--muted);margin-left:.6rem"></span></summary>
+    <p style="color:var(--muted);margin:.6rem 0">Serve the wall and editor over HTTPS (recommended whenever a view/admin key is used, since keys travel in the URL). Generate a self-signed certificate, or create a signing request for your CA and install the signed result. The private key stays on this server and is never shown.</p>
+    <div id="tlsInfo"></div>
+    <div class="top" style="margin-top:.6rem">
+      <label class="inline"><input type="checkbox" id="tlsEnabled"> Serve HTTPS</label>
+      <label>HTTPS port<input id="tlsPort" type="number" min="1" max="65535" style="width:6rem"></label>
+      <label class="inline" title="Visitors who open the plain-HTTP address are sent to HTTPS (localhost is never redirected)"><input type="checkbox" id="tlsRedirect"> Redirect HTTP to HTTPS</label>
+      <label class="inline" title="Tell browsers to use HTTPS only for this host for a year — only turn on with a certificate browsers trust"><input type="checkbox" id="tlsHsts"> HSTS</label>
+      <button class="primary" id="tlsSaveCfg">Apply</button><span id="tlsCfgMsg"></span>
+    </div>
+    <h4 style="margin:1rem 0 .3rem;color:var(--muted)">Get a certificate</h4>
+    <div class="top">
+      <label>Common name<input id="tlsCn" size="26" placeholder="noc.example.com"></label>
+      <label>Host names / IPs (comma separated)<input id="tlsHosts" size="46" placeholder="noc.example.com, 192.168.1.20"></label>
+      <label>Valid for (days)<input id="tlsDays" type="number" min="1" max="3650" value="825" style="width:6rem"></label>
+      <label>Key<select id="tlsKeyType"><option value="rsa">RSA 2048</option><option value="ec">ECDSA P-256</option></select></label>
+      <label>Organization (CSR)<input id="tlsOrg" size="20"></label>
+    </div>
+    <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.6rem"><button id="tlsSelf">Generate self-signed certificate</button><button id="tlsCsr">Generate signing request (CSR)</button><span id="tlsGenMsg"></span></div>
+    <div id="tlsCsrBox" style="display:none;margin-top:.6rem"><div style="color:var(--muted);font-size:.85rem">Send this request to your CA, then paste the signed certificate (and chain) below. <a id="tlsCsrDl" href="#">Download .csr</a></div><textarea id="tlsCsrText" rows="6" readonly style="width:100%;font-family:monospace;font-size:.75rem"></textarea></div>
+    <h4 style="margin:1rem 0 .3rem;color:var(--muted)">Install a certificate</h4>
+    <div style="color:var(--muted);font-size:.85rem;margin-bottom:.3rem">Paste the certificate PEM (server certificate first, then any intermediates). Leave the key empty if you generated a CSR here or are renewing with the same key.</div>
+    <label style="display:block">Certificate (PEM)<textarea id="tlsCert" rows="5" style="width:100%;font-family:monospace;font-size:.75rem" placeholder="-----BEGIN CERTIFICATE-----"></textarea></label>
+    <label style="display:block;margin-top:.4rem">Private key (PEM, only if you didn't generate a CSR here)<textarea id="tlsKey" rows="4" style="width:100%;font-family:monospace;font-size:.75rem" placeholder="-----BEGIN PRIVATE KEY-----"></textarea></label>
+    <div style="display:flex;gap:.6rem;align-items:center;margin-top:.6rem"><button class="primary" id="tlsInstall">Install certificate</button><input type="file" id="tlsFile" accept=".pem,.crt,.cer,.key" multiple title="Load certificate / key files into the boxes above"><button class="danger" id="tlsRemove">Remove certificate</button><span id="tlsInstMsg"></span></div>
+  </details>
+  <details class="panel" id="bkPanel">
+    <summary style="cursor:pointer;font-weight:600">Backup &amp; restore <span style="font-weight:400;color:var(--muted);margin-left:.6rem">screens, alerts, notifications, ticker, reports, connections</span></summary>
+    <p style="color:var(--muted);margin:.6rem 0">A backup is one file. <b>Configuration only</b> leaves out every credential (R1 secrets, notification passwords and webhook URLs, the TLS key) and is plain JSON. <b>Full</b> includes them and is always encrypted with a passphrase. Metric history and generated report files are not included. A credential-free copy is also saved automatically every day (last 14 kept).</p>
+    <div class="top">
+      <label class="inline"><input type="radio" name="bkMode" value="config" checked> Configuration only</label>
+      <label class="inline"><input type="radio" name="bkMode" value="full"> Full (with credentials, encrypted)</label>
+      <label>Passphrase<input id="bkPass" type="password" size="24" autocomplete="new-password" placeholder="(full backups only, 8+ characters)"></label>
+      <button class="primary" id="bkDownload">Download backup</button><span id="bkMsg"></span>
+    </div>
+    <h4 style="margin:1rem 0 .3rem;color:var(--muted)">Restore</h4>
+    <div class="top">
+      <label>Backup file<input type="file" id="bkFile" accept=".json,application/json"></label>
+      <label>Passphrase (if encrypted)<input id="bkRestorePass" type="password" size="24" autocomplete="off"></label>
+      <button id="bkInspect">Read backup</button>
+    </div>
+    <div id="bkPreview" style="margin-top:.6rem"></div>
+    <h4 style="margin:1rem 0 .3rem;color:var(--muted)">Saved copies on this server</h4>
+    <div id="bkList" style="font-size:.9rem"></div>
+  </details>
+  <details class="panel" id="upPanel">
+    <summary style="cursor:pointer;font-weight:600">Software update <span id="upState" style="font-weight:400;color:var(--muted);margin-left:.6rem"></span></summary>
+    <p style="color:var(--muted);margin:.6rem 0">Upgrade in place from a release file you downloaded (<code>sz-ai-noc-x.y.z.tgz</code>, or GitHub's "Download ZIP"). The new version is first started in a throw-away test instance; only if that works are the program files replaced and the app restarted. Your settings, screens, history and credentials (the <code>data</code> folder and <code>.env</code>) are not touched, and the old version is kept so you can roll back.</p>
+    <div id="upInfo"></div>
+    <div class="top" style="margin-top:.6rem"><label>Release file<input type="file" id="upFile" accept=".tgz,.gz,.zip"></label><button id="upCheck">Upload &amp; check</button><span id="upMsg"></span></div>
+    <div id="upPlan" style="margin-top:.6rem"></div>
+    <div id="upPrev" style="margin-top:.8rem"></div>
+  </details>
+  <details class="panel" id="alertsPanel">
+    <summary style="cursor:pointer;font-weight:600">Alerts <span style="font-weight:400;color:var(--muted);margin-left:.6rem">rules that take over the screens and notify you</span></summary>
+    <h4 style="margin:.8rem 0 .3rem;color:var(--muted)">Active right now</h4><div id="activeAlerts"></div>
+    <h4 style="margin:.8rem 0 .3rem;color:var(--muted)">Rules</h4><div id="ruleBody"></div>
+    <div style="display:flex;gap:.6rem;align-items:center;margin-top:.6rem"><button id="addRule">+ Add rule</button><button class="primary" id="saveRules">Save rules</button><span id="ruleMsg"></span></div>
+  </details>
+  <details class="panel" id="notifyPanel">
+    <summary style="cursor:pointer;font-weight:600">Notifications <span style="font-weight:400;color:var(--muted);margin-left:.6rem">Slack, Teams, email, webhook</span></summary>
+    <p style="color:var(--muted);margin:.6rem 0">Rules marked <b>Notify</b> send to every enabled channel (filtered by each channel's minimum severity). Secrets are stored on this server and never shown again.</p>
+    <div id="chanBody"></div>
+    <div style="display:flex;gap:.6rem;align-items:center;margin-top:.6rem"><button id="addChan">+ Add channel</button><button class="primary" id="saveChans">Save channels</button><span id="chanMsg"></span></div>
+  </details>
+  <details class="panel" id="tkPanel">
+    <summary style="cursor:pointer;font-weight:600">Ticker &amp; feeds <span style="font-weight:400;color:var(--muted);margin-left:.6rem">scrolling messages, news, weather, stock quotes</span></summary>
+    <div id="tkBody" style="margin-top:.7rem"></div>
+    <div style="display:flex;gap:.6rem;align-items:center;margin-top:.6rem"><button class="primary" id="saveTicker">Save ticker &amp; feeds</button><span id="tkMsg"></span></div>
+  </details>
+  <details class="panel" id="repPanel">
+    <summary style="cursor:pointer;font-weight:600">Reports <span style="font-weight:400;color:var(--muted);margin-left:.6rem">daily / weekly snapshots, printable and emailed</span></summary>
+    <p style="color:var(--muted);margin:.6rem 0">A report is a snapshot of a screen (or all screens) of a view, built from the same widgets. It's saved on the server, openable at <code>/report</code> (use <b>Print / save as PDF</b> in the browser), and emailed to your email channels. Times use the server's local time.</p>
+    <div id="repBody"></div>
+    <div style="display:flex;gap:.6rem;align-items:center;margin-top:.6rem"><button id="addRep">+ Add report</button><button class="primary" id="saveReps">Save reports</button><span id="repMsg"></span></div>
+  </details>
+  <details class="panel" id="plPanel">
+    <summary style="cursor:pointer;font-weight:600">Display playlists <span style="font-weight:400;color:var(--muted);margin-left:.6rem">which screens each monitor shows, and in what order</span></summary>
+    <div id="plBody" style="margin-top:.7rem"></div>
+  </details>
+  <details class="panel" id="sched">
+    <summary style="cursor:pointer;font-weight:600">Schedules <span style="font-weight:400;color:var(--muted);margin-left:.6rem">switch views by time of day</span></summary>
+    <div id="schedBody" style="margin-top:.7rem"></div>
+  </details>
+  <div class="panel">
+    <div class="tabs" id="views" style="align-items:center"></div>
+    <div class="tabs" id="tabs"></div>
+    <div id="designer"></div>
+    <div id="screen"></div>
+  </div>
+</div>
+<script src="/layout.js"></script>
+<script src="/admin.js"></script>
+<script src="/admin-designer.js"></script>
+<script src="/admin-alerts.js"></script>
+<script src="/admin-feeds.js"></script>
+<script src="/admin-msp.js"></script>
+<script src="/admin-sec.js"></script>
+</body>
+</html>

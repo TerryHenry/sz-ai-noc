@@ -1,0 +1,20 @@
+[Unit]
+Description=SZ-AI NOC Wall
+After=network-online.target sz-ai-noc-firstboot.service
+Wants=network-online.target
+Requires=sz-ai-noc-firstboot.service
+
+[Service]
+User=szai
+Group=szai
+WorkingDirectory=/opt/sz-ai-noc
+EnvironmentFile=-/etc/sz-ai-noc.env
+Environment=PORT=80 NOC_DATA_DIR=/var/lib/sz-ai-noc NOC_SUPERVISED=1 NOC_AUTH_HELPER=/usr/local/sbin/sz-ai-noc-authcheck
+ExecStart=/usr/local/bin/node /opt/sz-ai-noc/server.js
+Restart=always
+RestartSec=3
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

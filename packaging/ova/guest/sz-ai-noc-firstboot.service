@@ -1,0 +1,13 @@
+[Unit]
+Description=SZ-AI NOC Wall first-boot setup (admin key, certificate, SSH host keys)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=!/var/lib/sz-ai-noc/.provisioned
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/sz-ai-noc-firstboot
+
+[Install]
+WantedBy=multi-user.target
