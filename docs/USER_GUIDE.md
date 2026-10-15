@@ -186,7 +186,7 @@ RUCKUS One API keys do **not** work here. The MSP and per-customer modes of RUCK
 
 *(Screenshots use synthetic demo data: `npm run demo:ai` shows the same screens without credentials.)*
 
-The **+ Preset screen…** menu adds more (prefixed *SZ-AI* for the defaults). Presets never contain widgets that have no RUCKUS AI data: those widgets are dropped, and a preset that would lose half or more of its widgets (Switch events, Throughput, Client mix, the MSP ones…) is not offered. `npm run widgets:check` fails if a default screen or offered preset holds one.
+The **+ Preset screen…** menu adds more (prefixed *SZ-AI* for the defaults). Presets never contain widgets that have no RUCKUS AI data: those widgets are dropped, and a preset that would lose half or more of its widgets (Switch events, Throughput, Client mix, Wireless performance, RF coverage, the MSP ones…) is not offered. `npm run widgets:check` fails if a default screen or offered preset holds one.
 
 The picker lists only widgets that can show RUCKUS AI data. It matches title, group and ID in the search box (`controller`, `intent`,
 `firmware`, `model`, `zone`…). The tag on each button shows whether you already use it (**in use ×2 · 1 here** / **unused**), and
@@ -212,8 +212,9 @@ The first poll after you add one can take a minute to fill in. If a source fails
 ### Which widgets work with RUCKUS AI
 
 The catalog is inherited from a RUCKUS One tool, so most of it has no RUCKUS AI data behind it. Checked on a live tenant
-(3,358 APs, 103 switches, 168 controllers), of 1,174 widgets about **330 show data**, **20 need a day or more of history**,
-**about 715 have no source** and 109 are not applicable (MSP, external feeds). Nothing errors.
+(3,358 APs, 96 switches, 168 controllers), of 1,174 widgets about **160 show real data** (plus about 100 trend and
+comparison widgets that fill in as the wall keeps running), **about 800 have no source** (including ones that would show a zero or a dash
+in place of data RUCKUS AI does not give), and 109 are not applicable (MSP, external feeds). Nothing errors.
 
 | Works | Has no data |
 |---|---|

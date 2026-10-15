@@ -4,6 +4,7 @@
 //   OK       computed, and the result has content
 //   EMPTY    computed from data RUCKUS AI supplies, but the result is empty (nothing to show right now, or a sparse field)
 //   N/A      MSP-only or external-feed widget (not RUCKUS AI data)
+//   PARTLY   computed and non-empty, but built partly on a source RUCKUS AI does not fill (--partly shows what it displays)
 //   WARMUP   built on a metric RUCKUS AI data produces, but needs hours/days of history (fills in while the wall runs)
 //   NO DATA  needs a source RUCKUS AI does not provide (clients, switch ports, DPSK, guests, Wi-Fi calling, networks, ...)
 //   BROKEN   threw an error
@@ -63,6 +64,56 @@ function hasContent(r) {
   }
 }
 
+// A compact look at what a widget shows (for --partly), e.g. "value=0", "3 items: 0,0,0".
+function glance(r) {
+  if (!r) return '';
+  if (r.kind === 'kpi') return `value=${JSON.stringify(r.value)}${r.suffix ? ' ' + r.suffix : ''}`;
+  if (r.kind === 'stack') return `${(r.rows || []).length} rows: ` + (r.rows || []).map((x) => (x.segments || []).map((g) => g.value).join('/') || '-').join(' | ');
+  const items = r.items || r.rows || r.points || []; const vals = (r.items || []).map((x) => x.value).join(',');
+  return `${items.length} ${r.kind}${vals ? ': ' + vals.slice(0, 40) : ''}`;
+}
+// "Does this widget's output depend on data RUCKUS AI does not supply?" Recompute it on a copy of the snapshot where the missing sources
+// (clients, ports, radios, ...) and the never-filled AP/switch fields are filled from the demo generator. A different result means the live
+// value is a placeholder (a zero or a dash standing in for data that is not there); an identical one means the widget is unaffected.
+let filled = null;
+function withMissingFilled(S, ctx) {
+  if (filled) return filled;
+  const keep = history.count; history.count = () => 1;   // the demo would otherwise seed its history into this scratch database
+  let D; try { D = require('../lib/demo').tick(); } finally { history.count = keep; }
+  const out = { ...S };
+  for (const k of Object.keys(D)) if (!SUPPLIED.has(k) && (k in S) ) out[k] = D[k];
+  const dead = (coll) => [...ctx.neverFilled].filter((f) => f.startsWith(coll + '.')).map((f) => f.slice(coll.length + 1));
+  const lend = (rows, drows, fields) => rows.map((r, i) => { const d = drows[i % drows.length] || {}; const o = { ...r }; for (const f of fields) if (f in d) o[f] = d[f]; return o; });
+  out.aps = lend(S.aps || [], D.aps || [], dead('aps'));
+  const real = S.aps || [];
+  if (real.length) {   // put the demo's clients and radios on the real APs and zones so per-zone / per-AP widgets can see them
+    const at = (i) => real[i % real.length];
+    if (Array.isArray(out.clients)) out.clients = out.clients.map((c, i) => ({ ...c, venueId: at(i).venueId, venue: at(i).venue, ap: at(i).name, apSerial: at(i).id, apGroup: at(i).apGroup }));
+    if (Array.isArray(out.radios)) out.radios = out.radios.map((x, i) => ({ ...x, apId: at(i).id, apName: at(i).name, venueId: at(i).venueId, venue: at(i).venue, apGroup: at(i).apGroup, status: at(i).status }));
+  }
+  out.switches = lend(S.switches || [], D.switches || [], dead('switches'));
+  filled = out; return filled;
+}
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+// Is what the widget shows a zero / dash / empty stand-in rather than a number?
+const zeroish = (v) => v == null || v === '' || v === '—' || (typeof v === 'number' && !(v > 0)) || (typeof v === 'string' && /^[-+]?0+(\.0+)?\s*[%A-Za-z]{0,3}$/.test(v.trim()));
+const EMPTY_BUCKET = /^(unknown|none|n\/a|—|-|0 clients|)$/i;   // the one bucket everything falls into when the grouping field is never filled
+// Known to show a real-looking 0 that the perturbation cannot expose (radio clients are not modelled by the demo).
+const MANUAL_NO_DATA = new Set(['g.kpi.load.over20']);
+function placeholder(r) {
+  if (!r) return true;
+  switch (r.kind) {
+    case 'kpi': return zeroish(r.value);
+    case 'gauge': return zeroish(r.value);
+    case 'bar': case 'donut': { const it = r.items || []; return !it.some((x) => x.value > 0) || (it.length === 1 && EMPTY_BUCKET.test(String(it[0].label || '').trim())); }
+    case 'stack': return !(r.rows || []).some((x) => (x.segments || []).some((g) => g.value > 0));
+    case 'table': { const rows = r.rows || []; return rows.length > 0 && (rows.every((x) => (x.cells || []).slice(1).every(zeroish)) || (rows.length === 1 && EMPTY_BUCKET.test(String((rows[0].cells || [])[0] || '').trim()))); }   // first cell is the row label
+    case 'list': return false;
+    case 'line': return !(r.points || []).some((p) => p[1] > 0);
+    default: return false;
+  }
+}
+
 function classify(def, S, ctx) {
   if (def.msp || /\.customer(\.|$)/.test(def.type)) return { status: 'N/A', why: 'MSP customer widget (this app has one RUCKUS AI account)' };
   if (def.group === 'Ticker & feeds') return { status: 'N/A', why: 'external feed, not RUCKUS AI data' };
@@ -73,7 +124,17 @@ function classify(def, S, ctx) {
   try { r = widgets.compute({ type: def.type, venue: '', params: {} }, t.S); } catch (e) { return { status: 'BROKEN', why: e.message }; }
   if (r && r.kind === 'error') return { status: 'BROKEN', why: r.message || 'error payload' };
   const missing = [...t.reads].filter((k) => !SUPPLIED.has(k) && k in S && isEmpty(S[k]));
-  if (hasContent(r)) return { status: 'OK', why: missing.length ? `partly: ${missing.join(', ')} empty` : '' };
+  if (MANUAL_NO_DATA.has(def.type)) return { status: 'NO DATA', why: 'shows a placeholder zero: needs AP radios, which RUCKUS AI does not fill' };
+  const deadReads = [...t.fields].filter((f) => ctx.neverFilled.has(f));
+  const hkAbsent = [...histReads].filter((k) => ![...ctx.metricKeys].some((m) => m === k || m.startsWith(k)));
+  if (hkAbsent.length && hasContent(r)) return { status: 'NO DATA', why: `metric ${hkAbsent.slice(0, 2).join(', ')} is not produced from RUCKUS AI data`, payload: r };
+  if (hasContent(r)) {
+    if (!missing.length && !deadReads.length) return { status: 'OK', why: '' };
+    let r2 = null; try { r2 = widgets.compute({ type: def.type, venue: '', params: {} }, withMissingFilled(S, ctx)); } catch { /* treat as unchanged */ }
+    const reads = [...missing, ...deadReads].join(', ');
+    if (r2 && !same(r, r2) && (placeholder(r) || (deadReads.length && (r.kind === 'kpi' || r.kind === 'gauge')))) return { status: 'NO DATA', why: `shows placeholders (zeros or dashes): its value depends on ${reads}, which RUCKUS AI does not fill`, payload: r };
+    return { status: 'PARTLY', why: `reads ${reads}, but the value does not depend on it`, payload: r };
+  }
   if (missing.length) return { status: 'NO DATA', why: `reads ${missing.join(', ')}, which RUCKUS AI does not fill` };
   const dead = [...t.fields].filter((f) => ctx.neverFilled.has(f));
   if (dead.length) return { status: 'NO DATA', why: `reads ${dead.join(', ')}, which RUCKUS AI never fills` };
@@ -123,7 +184,7 @@ async function getSnapshot() {
   const ctx = { neverFilled: new Set(Object.entries(cov).flatMap(([k, c]) => Object.entries(c.filled).filter(([, n]) => n === 0).map(([f]) => `${k}.${f}`))), metricKeys: new Set(Object.keys(collect.metricsOf(S, true))) };
   const results = widgets.catalog().filter((d) => !only || d.group === only).map((d) => ({ type: d.type, title: d.title, group: d.group, ...classify(d, S, ctx) }));
   const count = (s) => results.filter((r) => r.status === s).length;
-  const summary = { widgets: results.length, ok: count('OK'), empty: count('EMPTY'), noData: count('NO DATA'), warmup: count('WARMUP'), na: count('N/A'), broken: count('BROKEN'), snapshot: { aps: (S.aps || []).length, switches: (S.switches || []).length, zones: (S.venues || []).length, controllers: (S.controllers || []).length, alarms: (S.alarms || []).length, intents: S.intents ? S.intents.total : null, analytics: Boolean(S.analytics), errors: S.errors || {} } };
+  const summary = { widgets: results.length, ok: count('OK'), empty: count('EMPTY'), noData: count('NO DATA'), warmup: count('WARMUP'), partly: count('PARTLY'), na: count('N/A'), broken: count('BROKEN'), snapshot: { aps: (S.aps || []).length, switches: (S.switches || []).length, zones: (S.venues || []).length, controllers: (S.controllers || []).length, alarms: (S.alarms || []).length, intents: S.intents ? S.intents.total : null, analytics: Boolean(S.analytics), errors: S.errors || {} } };
   // Screens people get without choosing widgets themselves: the defaults and the presets the editor offers. They must not hold NO DATA widgets.
   const status = new Map(results.map((r) => [r.type, r.status]));
   const offered = [...dash.DEFAULT.screens.map((sc) => ({ name: `default: ${sc.name}`, widgets: sc.widgets })), ...dash.presets().map((p) => ({ name: `preset: ${p.name}`, widgets: p.widgets }))];
@@ -140,13 +201,14 @@ async function getSnapshot() {
 
   console.log(`Snapshot: ${summary.snapshot.aps} APs, ${summary.snapshot.switches} switches, ${summary.snapshot.zones} zones/groups, ${summary.snapshot.controllers} controllers, ${summary.snapshot.alarms} alarms, intents ${summary.snapshot.intents ?? 'n/a'}, analytics ${summary.snapshot.analytics ? 'yes' : 'no'}`);
   const errs = Object.entries(summary.snapshot.errors); if (errs.length) console.log('Source errors:\n' + errs.map(([k, e]) => `  ${k}: ${e}`).join('\n'));
-  console.log(`\n${summary.widgets} widgets: ${summary.ok} OK · ${summary.warmup} need history · ${summary.empty} empty · ${summary.noData} no data · ${summary.na} n/a · ${summary.broken} broken\n`);
+  console.log(`\n${summary.widgets} widgets: ${summary.ok} OK · ${summary.partly} partly · ${summary.warmup} need history · ${summary.empty} empty · ${summary.noData} no data · ${summary.na} n/a · ${summary.broken} broken\n`);
   const byGroup = new Map(); for (const r of results) { if (!byGroup.has(r.group)) byGroup.set(r.group, []); byGroup.get(r.group).push(r); }
   for (const [g, rs] of byGroup) {
     const ok = rs.filter((r) => r.status === 'OK').length;
     console.log(`${g}  (${ok}/${rs.length} OK)`);
     for (const r of rs) if (flag('all') || r.status !== 'OK') console.log(`  ${r.status.padEnd(8)} ${r.type.padEnd(34)} ${r.why}`);
   }
+  if (flag('partly')) { console.log('\nPARTLY: built on an empty source; check the value is real'); for (const r of results.filter((x) => x.status === 'PARTLY')) console.log(`  ${r.type.padEnd(34)} ${glance(r.payload)}`); }
   console.log('\nField coverage (rows with a value / rows):');
   for (const [k, c] of Object.entries(cov)) { const sparse = Object.entries(c.filled).filter(([, n]) => n === 0).map(([f]) => f); console.log(`  ${k}: ${c.rows} rows${sparse.length ? `; never filled: ${sparse.join(', ')}` : ''}`); }
   if (!only) {
