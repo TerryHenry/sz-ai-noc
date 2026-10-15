@@ -90,21 +90,21 @@
     <button class="primary" id="save">Save &amp; apply</button>
   </div>
   <details class="panel" id="conn">
-    <summary style="cursor:pointer;font-weight:600">R1 connection <span id="connState" style="font-weight:400;color:var(--muted);margin-left:.6rem"></span></summary>
+    <summary style="cursor:pointer;font-weight:600">RUCKUS AI connection <span id="connState" style="font-weight:400;color:var(--muted);margin-left:.6rem"></span></summary>
     <div class="top" style="margin:.7rem 0">
-      <label>How do you connect to RUCKUS One?
+      <label style="display:none">Mode
         <select id="s_mode"><option value="single">One RUCKUS One account</option><option value="msp">MSP — one key for all my customers</option><option value="customers">MSP — a separate key for each customer</option></select></label>
       <label>Poll every (sec)<input id="s_poll" type="number" min="15" max="3600"></label>
     </div>
     <div id="modeSingle">
-    <p style="color:var(--muted);margin:.6rem 0">Create an API application in RUCKUS One (Administration &rarr; Account Management &rarr; API Keys). The secret is stored on this server in <code>data/settings.json</code> and is never sent back to the browser.</p>
+    <p style="color:var(--muted);margin:.6rem 0">Create an Application Token in RUCKUS AI (Administration &rarr; Developers &rarr; Application Tokens). RUCKUS One API keys do not work here. The secret is stored on this server in <code>data/settings.json</code> and is never sent back to the browser.</p>
     <div class="top">
-      <label>Tenant ID<input id="s_tenant" size="34" autocomplete="off" spellcheck="false"></label>
+      <label>Tenant ID (optional, for delegated MSP access)<input id="s_tenant" size="34" autocomplete="off" spellcheck="false"></label>
       <label>Client ID<input id="s_client" size="30" autocomplete="off" spellcheck="false"></label>
       <label>Client secret<input id="s_secret" type="password" size="30" autocomplete="new-password" placeholder="(unchanged)"></label>
       <label>Region<select id="s_region"><option value="https://api.ruckus.cloud">North America</option><option value="https://api.eu.ruckus.cloud">Europe</option><option value="https://api.asia.ruckus.cloud">Asia</option><option value="custom">Custom…</option></select></label>
       <label>API base URL<input id="s_api" size="30" spellcheck="false"></label>
-      <label>OAuth base URL<input id="s_oauth" size="30" spellcheck="false"></label>
+      <label style="display:none">OAuth base URL<input id="s_oauth" size="30" spellcheck="false"></label>
     </div>
     <div style="display:flex;gap:.6rem;align-items:center;margin-top:.8rem">
       <button class="primary" id="s_save">Save connection</button>
@@ -132,7 +132,7 @@
       <span id="mspMsg"></span>
     </div>
     </div>
-    <div style="display:flex;gap:.6rem;align-items:center;margin-top:.8rem"><button id="s_diag">Diagnostics</button> <span id="s_msg2" style="color:var(--muted);font-size:.85rem">Shows exactly what R1 returns for your tenant.</span></div>
+    <div style="display:flex;gap:.6rem;align-items:center;margin-top:.8rem"><button id="s_diag">Diagnostics</button> <span id="s_msg2" style="color:var(--muted);font-size:.85rem">Shows exactly what RUCKUS AI returns for your account.</span></div>
   <pre id="diag" style="display:none;max-height:22rem;overflow:auto;background:var(--panel-2);border:1px solid var(--line);border-radius:.4rem;padding:.6rem;margin-top:.8rem;font-size:.75rem"></pre>
   </details>
   
@@ -174,7 +174,7 @@
   </details>
   <details class="panel" id="bkPanel">
     <summary style="cursor:pointer;font-weight:600">Backup &amp; restore <span style="font-weight:400;color:var(--muted);margin-left:.6rem">screens, alerts, notifications, ticker, reports, connections</span></summary>
-    <p style="color:var(--muted);margin:.6rem 0">A backup is one file. <b>Configuration only</b> leaves out every credential (R1 secrets, notification passwords and webhook URLs, the TLS key) and is plain JSON. <b>Full</b> includes them and is always encrypted with a passphrase. Metric history and generated report files are not included. A credential-free copy is also saved automatically every day (last 14 kept).</p>
+    <p style="color:var(--muted);margin:.6rem 0">A backup is one file. <b>Configuration only</b> leaves out every credential (RUCKUS AI secrets, notification passwords and webhook URLs, the TLS key) and is plain JSON. <b>Full</b> includes them and is always encrypted with a passphrase. Metric history and generated report files are not included. A credential-free copy is also saved automatically every day (last 14 kept).</p>
     <div class="top">
       <label class="inline"><input type="radio" name="bkMode" value="config" checked> Configuration only</label>
       <label class="inline"><input type="radio" name="bkMode" value="full"> Full (with credentials, encrypted)</label>

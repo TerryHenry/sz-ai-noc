@@ -313,8 +313,8 @@ if (q.get('guard') === '1' || (DISPLAY > 0 && q.get('guard') !== '0')) {
 function updateStatus() {
   const chip = $('#src');
   if (!data) { chip.textContent = 'connecting…'; chip.className = 'chip'; return; }
-  if (data.starting) { $('#banner').classList.remove('show'); chip.className = 'chip warn'; chip.textContent = 'starting — fetching from RUCKUS One…'; return; }
-  if (data.setup) {   // fresh install: nothing is wrong, it just needs its R1 credentials
+  if (data.starting) { $('#banner').classList.remove('show'); chip.className = 'chip warn'; chip.textContent = 'starting — fetching from RUCKUS AI…'; return; }
+  if (data.setup) {   // fresh install: nothing is wrong, it just needs its RUCKUS AI Application Token
     $('#banner').classList.add('show'); $('#banner').style.background = 'var(--info)';
     $('#banner').innerHTML = `${esc(data.setup)} <a href="${api('/admin')}" style="color:#fff;text-decoration:underline">Open the editor</a>`;
     chip.className = 'chip warn'; chip.textContent = 'setup needed'; chip.title = data.setup; return;
@@ -325,7 +325,7 @@ function updateStatus() {
   const core = ['venues', 'aps', 'switches', 'clients', 'alarms'];
   const down = core.every((k) => (data.errors || {})[k]);
   $('#banner').classList.toggle('show', !!stale || down);
-  $('#banner').textContent = stale ? `DATA STALE — last update ${Math.round(age / 60000)} min ago` : `R1 API unreachable: ${Object.values(data.errors)[0]}`;
+  $('#banner').textContent = stale ? `DATA STALE — last update ${Math.round(age / 60000)} min ago` : `RUCKUS AI unreachable: ${Object.values(data.errors)[0]}`;
   chip.className = 'chip ' + (stale || down ? 'bad' : errs.length ? 'warn' : 'ok');
   chip.textContent = `${data.source === 'demo' ? 'DEMO · ' : ''}${errs.length ? errs.length + ' source issue' + (errs.length > 1 ? 's' : '') : 'live'} · ${data.at ? new Date(data.at).toLocaleTimeString() : 'no data'}`;
   chip.title = errs.map((k) => `${k}: ${data.errors[k]}`).join('\n');

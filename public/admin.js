@@ -227,7 +227,7 @@ $('#save').addEventListener('click', async () => {
 });
 load();
 
-// ---------- R1 connection settings ----------
+// ---------- RUCKUS AI connection settings ----------
 const REGIONS = ['https://api.ruckus.cloud', 'https://api.eu.ruckus.cloud', 'https://api.asia.ruckus.cloud'];
 const sMsg = (t, cls = 'ok') => { const m = $('#s_msg'); m.textContent = t; m.className = cls; };
 function showMode(m) { for (const [k, id] of [['single', 'modeSingle'], ['msp', 'modeMsp'], ['customers', 'modeCust']]) { const e = $('#' + id); if (e) e.style.display = k === m ? '' : 'none'; } }
@@ -235,9 +235,9 @@ function fillSettings(s) {
   $('#s_tenant').value = s.tenantId; $('#s_client').value = s.clientId; $('#s_secret').value = '';
   $('#s_secret').placeholder = s.secretSet ? '•••••••• (saved — leave blank to keep)' : '(not set)';
   $('#s_api').value = s.apiBase; $('#s_oauth').value = s.oauthBase; $('#s_poll').value = s.pollSeconds;
-  $('#s_region').value = REGIONS.includes(s.apiBase) && s.apiBase === s.oauthBase ? s.apiBase : 'custom';
-  $('#s_mode').value = s.mode || 'single'; showMode(s.mode || 'single');
-  const ok = s.tenantId && s.clientId && s.secretSet;
+  $('#s_region').value = REGIONS.includes(s.apiBase) ? s.apiBase : 'custom';
+  $('#s_mode').value = 'single'; showMode('single');
+  const ok = s.clientId && s.secretSet;
   const msp = s.msp || {}, nc = (s.customers || []).length;
   const state = s.mode === 'msp' ? (msp.tenantId && msp.secretSet ? 'MSP account' : 'MSP account — not set up yet') : s.mode === 'customers' ? (nc ? `${(s.customers || []).filter((c) => c.enabled !== false).length} of ${nc} customers` : 'customers — none added yet') : ok ? 'configured' : 'not configured';
   $('#connState').textContent = s.demo ? 'DEMO mode — synthetic data' : state;
@@ -260,7 +260,7 @@ $('#s_test').addEventListener('click', async () => {
   sMsg('Testing…', ''); $('#s_test').disabled = true;
   try {
     const j = await (await fetch(api('/api/settings/test'), { method: 'POST' })).json();
-    if (j.ok) sMsg(`Connected — ${j.venues} venue${j.venues === 1 ? '' : 's'}${j.sample.length ? ': ' + j.sample.join(', ') : ''}`); else sMsg(j.error, 'bad');
+    if (j.ok) sMsg(`Connected — ${j.summary || (j.venues + ' venues')}${j.sample && j.sample.length ? ': ' + j.sample.join(', ') : ''}`); else sMsg(j.error, 'bad');
   } catch (e) { sMsg(e.message, 'bad'); }
   $('#s_test').disabled = false;
 });

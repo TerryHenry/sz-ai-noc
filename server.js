@@ -9,7 +9,7 @@ const collect = require('./lib/collect');
 const dash = require('./lib/dashboard');
 const widgets = require('./lib/widgets');
 const settings = require('./lib/settings');
-const r1 = require('./lib/r1');
+const rai = require('./lib/rai');
 const rules = require('./lib/rules');
 const notify = require('./lib/notify');
 const report = require('./lib/report');
@@ -166,14 +166,12 @@ const handle = async (req, res) => {
         if (p === '/api/settings' && req.method === 'GET') return json(res, 200, settings.get());
         if (p === '/api/settings' && req.method === 'PUT') {
           try { settings.save(await readBody(req)); } catch (e) { return json(res, 400, { error: e.message }); }
-          r1.reset(); collect.resetCaches(); schedule(); cycle();
+          rai.reset(); collect.resetCaches(); schedule(); cycle();
           return json(res, 200, settings.get());
         }
         if (p === '/api/settings/test' && req.method === 'POST') {
           if (cfg.demo) return json(res, 200, { ok: false, error: 'Server is running in demo mode (NOC_DEMO=1) — restart without it to use live data.' });
-          const cid = url.searchParams.get('customer');
-          if (cid) { const c = (cfg.customers || []).find((x) => x.id === cid); if (!c) return json(res, 200, { ok: false, error: 'Unknown customer — save the list first' }); try { return json(res, 200, { ok: true, ...(await r1.createClient(c).test()) }); } catch (e) { return json(res, 200, { ok: false, error: e.message }); } }
-          try { return json(res, 200, { ok: true, ...(await r1.test()) }); } catch (e) { return json(res, 200, { ok: false, error: e.message }); }
+          try { return json(res, 200, { ok: true, ...(await rai.test()) }); } catch (e) { return json(res, 200, { ok: false, error: e.message }); }
         }
       }
       if (p === '/api/msp' || p === '/api/msp/refresh') {
@@ -363,7 +361,7 @@ server.on('error', (e) => { if (e.code === 'EADDRINUSE' && process.env.NOC_RESTA
 server.listen(cfg.port, () => {
   applyTls();
   const ips = Object.values(os.networkInterfaces()).flat().filter((i) => i && i.family === 'IPv4' && !i.internal).map((i) => i.address);
-  console.log(`SZ-AI NOC Wall ${upgrade.version()}  (${cfg.demo ? 'DEMO data' : 'live R1'}, poll ${cfg.pollSeconds}s)`);
+  console.log(`SZ-AI NOC Wall ${upgrade.version()}  (${cfg.demo ? 'DEMO data' : 'live RUCKUS AI'}, poll ${cfg.pollSeconds}s)`);
   for (const h of ips.length ? ips.slice(0, 3) : ['localhost']) console.log(`  wall:   http://${h}:${cfg.port}/${cfg.viewKey ? '?key=<NOC_VIEW_KEY>' : ''}\n  editor: http://${h}:${cfg.port}/admin${cfg.adminKey ? '?key=<NOC_ADMIN_KEY>' : ''}`);
   console.log(cfg.adminKey || auth.enabled() ? '  (editor: sign in or use the key)' : '  (the editor works from this computer only until you set an editor login or key)');
 });

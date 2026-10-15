@@ -7,7 +7,7 @@ server collects the data; any browser on your network — wall TVs, kiosks, lapt
 
 > **Status: early development.** This project starts from [R1 NOC Wall](https://github.com/TerryHenry/r1-noc) — its dashboard engine,
 > editor, alerts and notifications, HTTPS, backup/restore, in-place upgrade and packaging (appliance, macOS, Windows) — and is being
-> re-pointed at RUCKUS AI. The documentation in `docs/` still describes R1 NOC Wall and will be rewritten as the RUCKUS AI and
+> re-pointed at RUCKUS AI (live inventory, incidents and Intent AI work; connect with an Application Token from Administration → Developers). The documentation in `docs/` still describes R1 NOC Wall and will be rewritten as the RUCKUS AI and
 > SmartZone data sources land.
 
 ## Roadmap
