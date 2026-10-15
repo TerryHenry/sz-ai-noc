@@ -153,9 +153,10 @@ function pickerBody() {
 }
 function pickerHtml() {
   const u = usage();
+  const shown = catalog.filter((c) => (customers.length || !c.msp || u.has(c.type)) && (showUnavail || !c.unavailable || u.has(c.type)));
   const inUse = catalog.filter((c) => u.has(c.type)).length; const nUn = catalog.filter((c) => c.unavailable).length;
-  return `<div class="picker-head"><strong>${inUse} of ${catalog.length}</strong> widgets in use
-      <input id="pq" type="search" placeholder="Search ${catalog.length} widgets…  try: dpsk, vlan, poe, guest, ssid" value="${esc(pickQ)}">
+  return `<div class="picker-head"><strong>${inUse} of ${shown.length}</strong> widgets in use
+      <input id="pq" type="search" placeholder="Search ${shown.length} widgets…  try: dpsk, vlan, poe, guest, ssid" value="${esc(pickQ)}">
       <label class="inline"><input type="checkbox" id="unusedOnly" ${unusedOnly ? 'checked' : ''}> Unused only</label>
       ${nUn ? `<label class="inline" title="Widgets that need data RUCKUS AI does not provide (clients, switch ports, DPSK, guests, ...). They stay empty."><input type="checkbox" id="showUnavail" ${showUnavail ? 'checked' : ''}> Show ${nUn} without RUCKUS AI data</label>` : ''}</div>
     <div id="pickerBody">${pickerBody()}</div>`;

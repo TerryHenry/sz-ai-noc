@@ -239,7 +239,6 @@ npm run widgets:check -- --save snap.json --write-unavailable            # also 
 
 > **Not available with RUCKUS AI.** This section describes RUCKUS One data (switch ports and event logs). With RUCKUS AI only the incident-based tiles (*Loops detected*, *Port-flap incidents*, *TCP SYN flood incidents*) can show data.
 
-![Switch events](img/switch-events.png)
 
 The **Switch events** preset (and the *Switching events* group in the widget picker) covers the "what just happened on my switches" questions. Two sources:
 
