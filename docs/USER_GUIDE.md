@@ -163,7 +163,10 @@ both are supported, one per wall:
 | Reads | controllers onboarded to RUCKUS AI, through one Application Token | each controller's own public API (`https://<address>:8443/wsg/api/public`), through a read-only administrator's user name and password per controller (service-ticket sign-in) |
 | Controllers | all your onboarded controllers at once | a list you add, one row each (name, address, port, user name, password) |
 | Only here | Intent AI, connection-experience analytics | |
-| Status | working, confirmed on a live tenant | **early**: zones, APs and controller info; the rest is being added and confirmed against a real controller |
+| Status | working, confirmed on a live tenant | **working, early**: confirmed against a live SmartZone 7.2 (API v14_0) for zones, APs (live status, model, firmware, IP, client counts, channels), WLANs and the controller. Client and alarm lists are read but their fields are unconfirmed (that controller had none), and no switch data is read (the controller has no switch API) |
+
+SmartZone's stock screens are **Overview**, **Zones**, **Wi-Fi networks** and **Clients**. Widgets that need switches, switch ports, DPSK, guests,
+Wi-Fi calling profiles, Intent AI or the RUCKUS AI analytics are hidden for it (`npm run widgets:check -- --source smartzone`).
 
 Switching the source swaps the stock screens for the new source's stock screens. A layout you have edited is left alone. The widget
 picker and presets follow the source: they only offer widgets that can show data for it (SmartZone hides the RUCKUS AI-only widgets).
@@ -178,8 +181,8 @@ ticket* that the wall then sends with every request, signing in again when the t
 **Add a SmartZone controller:** *Data source* → *SmartZone controllers (direct)* → **+ Add controller**, enter a name, the controller's address
 (host name or IP, no `https://`), the port (default 8443), the user name and the password, then **Test** (or **Save connection**, then
 **Test connection**). The wall finds the newest API version the controller supports and shows it, for example *"API v13_1, controller 7.0.0.0, signed in,
-14 zones"*. Leave **Verify certificate** off for a controller with a self-signed certificate. SmartZone's own switch, client, WLAN and alarm data
-are added as each is confirmed live.
+14 zones"*. Leave **Verify certificate** off for a controller with a self-signed certificate. The wall reads the controller's *query* endpoints (`/query/zone`, `/query/ap`, `/query/wlan`, `/query/client`, `/alert/alarm/list`) and `/controller`,
+up to 1,000 rows per page.
 
 ### RUCKUS AI connection
 

@@ -37,8 +37,11 @@ const dash = require('../lib/dashboard');
 const history = require('../lib/history');
 
 // Snapshot fields RUCKUS AI fills in (lib/collect.js pollRai). Anything else a widget reads while it is empty means NO DATA.
-const SUPPLIED = new Set(['venues', 'aps', 'switches', 'alarms', 'controllers', 'intents', 'clientTotal', 'analytics', 'errors', 'at', 'source', 'diag', 'setup', 'starting', 'customers']);
-const SUPPLIED_NEEDS = new Set(['analytics']);
+// Snapshot fields each source's collector fills in (lib/collect.js pollRai / pollSz). A widget that reads any other EMPTY field has no data.
+// This is about what the collector supplies, not what a particular tenant or lab happens to hold: a controller with no clients still supplies clients.
+const COMMON = ['venues', 'aps', 'alarms', 'controllers', 'clientTotal', 'errors', 'at', 'source', 'diag', 'setup', 'starting', 'customers'];
+const SUPPLIED = new Set(SOURCE === 'smartzone' ? [...COMMON, 'clients', 'networks'] : [...COMMON, 'switches', 'intents', 'analytics']);
+const SUPPLIED_NEEDS = new Set(SOURCE === 'smartzone' ? ['networks'] : ['analytics']);
 const isEmpty = (v) => v == null || v === '' || (Array.isArray(v) && !v.length) || (typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length);
 
 // Wrap the snapshot so we can see which top-level fields a widget touches, and which fields of each aps/switches/venues/... row.
@@ -94,7 +97,7 @@ function withMissingFilled(S, ctx) {
     if (Array.isArray(out.clients)) out.clients = out.clients.map((c, i) => ({ ...c, venueId: at(i).venueId, venue: at(i).venue, ap: at(i).name, apSerial: at(i).id, apGroup: at(i).apGroup }));
     if (Array.isArray(out.radios)) out.radios = out.radios.map((x, i) => ({ ...x, apId: at(i).id, apName: at(i).name, venueId: at(i).venueId, venue: at(i).venue, apGroup: at(i).apGroup, status: at(i).status }));
   }
-  out.switches = lend(S.switches || [], D.switches || [], dead('switches'));
+  out.switches = (S.switches || []).length || SUPPLIED.has('switches') ? lend(S.switches || [], D.switches || [], dead('switches')) : D.switches;   // no switch source at all: the demo's switches stand in
   filled = out; return filled;
 }
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -189,7 +192,7 @@ async function getSnapshot() {
   if (S.at && !flag('snapshot')) { try { history.record(S.at, collect.metricsOf(S, true)); } catch { /* trends then show as EMPTY */ } }   // one point so trend widgets have something
   const only = opt('group');
   const cov = coverage(S);
-  const ctx = { neverFilled: new Set(Object.entries(cov).flatMap(([k, c]) => Object.entries(c.filled).filter(([, n]) => n === 0).map(([f]) => `${k}.${f}`))), metricKeys: new Set(Object.keys(collect.metricsOf(S, true))) };
+  const ctx = { neverFilled: SOURCE === 'smartzone' ? new Set(['aps.uplink']) : new Set(Object.entries(cov).flatMap(([k, c]) => Object.entries(c.filled).filter(([, n]) => n === 0).map(([f]) => `${k}.${f}`))), metricKeys: new Set(Object.keys(collect.metricsOf(S, true))) };
   const results = widgets.catalog().filter((d) => !only || d.group === only).map((d) => ({ type: d.type, title: d.title, group: d.group, ...classify(d, S, ctx) }));
   const count = (s) => results.filter((r) => r.status === s).length;
   const summary = { widgets: results.length, ok: count('OK'), empty: count('EMPTY'), noData: count('NO DATA'), warmup: count('WARMUP'), partly: count('PARTLY'), na: count('N/A'), broken: count('BROKEN'), snapshot: { aps: (S.aps || []).length, switches: (S.switches || []).length, zones: (S.venues || []).length, controllers: (S.controllers || []).length, alarms: (S.alarms || []).length, intents: S.intents ? S.intents.total : null, analytics: Boolean(S.analytics), errors: S.errors || {} } };
