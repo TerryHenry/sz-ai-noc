@@ -233,7 +233,34 @@ load();
 const REGIONS = ['https://api.ruckus.cloud', 'https://api.eu.ruckus.cloud', 'https://api.asia.ruckus.cloud'];
 const sMsg = (t, cls = 'ok') => { const m = $('#s_msg'); m.textContent = t; m.className = cls; };
 function showMode(m) { for (const [k, id] of [['single', 'modeSingle'], ['msp', 'modeMsp'], ['customers', 'modeCust']]) { const e = $('#' + id); if (e) e.style.display = k === m ? '' : 'none'; } }
+// ---- SmartZone controllers (data source "SmartZone controllers (direct)") ----
+let szRows = [];
+function szDraw() {
+  $('#szList').innerHTML = szRows.map((c, i) => `<div class="top" data-i="${i}" style="align-items:flex-end;border-top:1px solid var(--line);padding:.5rem 0">
+      <label>Name<input data-k="name" value="${esc(c.name || '')}" size="16" placeholder="Campus SZ"></label>
+      <label>Address<input data-k="host" value="${esc(c.host || '')}" size="22" placeholder="sz.example.com or 10.0.0.5" spellcheck="false"></label>
+      <label>Port<input data-k="port" type="number" value="${esc(c.port || 8443)}" style="width:5.5rem"></label>
+      <label>API key<input data-k="apiKey" type="password" value="" size="24" autocomplete="new-password" placeholder="${c.keySet ? '•••••• (saved, leave blank to keep)' : '(not set)'}"></label>
+      <label class="inline" title="Leave off for a controller with a self-signed certificate"><input data-k="verifyTls" type="checkbox" ${c.verifyTls ? 'checked' : ''}> Verify certificate</label>
+      <label class="inline"><input data-k="enabled" type="checkbox" ${c.enabled !== false ? 'checked' : ''}> Enabled</label>
+      <button data-act="szTest">Test</button><button data-act="szDel" class="danger">Remove</button><span data-out style="color:var(--muted)"></span>
+    </div>`).join('') || '<p style="color:var(--muted)">No controllers yet.</p>';
+}
+function szRead() {   // current field values back into szRows (keys left blank mean "keep")
+  document.querySelectorAll('#szList [data-i]').forEach((row) => {
+    const c = szRows[Number(row.dataset.i)]; if (!c) return;
+    for (const f of row.querySelectorAll('[data-k]')) { const k = f.dataset.k; c[k] = f.type === 'checkbox' ? f.checked : f.type === 'number' ? Number(f.value) || 8443 : f.value; }
+  });
+}
+const szBody = () => szRows.map((c) => ({ id: c.id, name: c.name, host: c.host, port: c.port, apiKey: c.apiKey || '', verifyTls: Boolean(c.verifyTls), enabled: c.enabled !== false, authStyle: c.authStyle || '' }));
+function showSource(src) { $('#srcSz').style.display = src === 'smartzone' ? '' : 'none'; $('#srcRai').style.display = src === 'smartzone' ? 'none' : ''; }
 function fillSettings(s) {
+  $('#s_source').value = s.source || 'rai'; showSource(s.source || 'rai');
+  szRows = (s.smartzone || []).map((c) => ({ ...c, apiKey: '' })); szDraw();
+  _fillRai(s);
+  if (s.source === 'smartzone') { const n = szRows.filter((c) => c.enabled !== false && c.host && c.keySet).length; $('#connState').textContent = s.demo ? 'DEMO mode — synthetic data' : n ? `SmartZone: ${n} controller${n === 1 ? '' : 's'}` : 'SmartZone: not set up yet'; if (!s.demo && !n) $('#conn').open = true; }
+}
+function _fillRai(s) {
   $('#s_tenant').value = s.tenantId; $('#s_client').value = s.clientId; $('#s_secret').value = '';
   $('#s_secret').placeholder = s.secretSet ? '•••••••• (saved — leave blank to keep)' : '(not set)';
   $('#s_api').value = s.apiBase; $('#s_oauth').value = s.oauthBase; $('#s_poll').value = s.pollSeconds;
@@ -249,6 +276,36 @@ async function loadSettings() {
   const r = await fetch(api('/api/settings'));
   if (r.ok) fillSettings(await r.json()); else $('#connState').textContent = 'admin access required';
 }
+$('#s_source').addEventListener('change', async (e) => {
+  showSource(e.target.value); const msg = $('#s_msg_sz');
+  const r = await fetch(api('/api/settings'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: e.target.value }) });
+  if (!r.ok) { sMsg((await r.json()).error || 'Save failed', 'bad'); return; }
+  await Promise.all([loadSettings(), load()]);   // the stock screens (and the widget picker) follow the source
+  if (msg) msg.textContent = '';
+});
+$('#sz_add').addEventListener('click', () => { szRead(); szRows.push({ id: '', name: '', host: '', port: 8443, verifyTls: false, enabled: true }); szDraw(); });
+$('#szList').addEventListener('click', async (e) => {
+  const b = e.target.closest('button[data-act]'); if (!b) return; szRead();
+  const row = b.closest('[data-i]'); const i = Number(row.dataset.i);
+  if (b.dataset.act === 'szDel') { szRows.splice(i, 1); szDraw(); return; }
+  const out = row.querySelector('[data-out]'); out.textContent = ' saving…';
+  const r = await fetch(api('/api/settings'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'smartzone', smartzone: szBody() }) });
+  const j = await r.json(); if (!r.ok) { out.textContent = ' ✗ ' + (j.error || 'save failed'); return; }
+  const saved = (j.smartzone || [])[i]; out.textContent = ' testing…';
+  const t = await (await fetch(api(`/api/settings/test?controller=${encodeURIComponent(saved ? saved.id : '')}`), { method: 'POST' })).json();
+  out.textContent = t.ok ? ' ✓ ' + t.summary : ' ✗ ' + t.error; out.className = t.ok ? 'ok' : 'bad'; fillSettings(j);
+});
+$('#s_save_sz').addEventListener('click', async () => {
+  szRead(); const m = $('#s_msg_sz');
+  const r = await fetch(api('/api/settings'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'smartzone', smartzone: szBody(), pollSeconds: $('#s_poll').value }) });
+  const j = await r.json(); if (!r.ok) { m.textContent = j.error || 'Save failed'; m.className = 'bad'; return; }
+  fillSettings(j); $('#s_msg_sz').textContent = 'Saved — polling with the new settings. Use Test connection to verify.'; $('#s_msg_sz').className = 'ok';
+});
+$('#s_test_sz').addEventListener('click', async () => {
+  const m = $('#s_msg_sz'); m.textContent = 'Testing…'; m.className = '';
+  const j = await (await fetch(api('/api/settings/test'), { method: 'POST' })).json();
+  m.textContent = j.ok ? 'Connected — ' + j.summary : j.error; m.className = j.ok ? 'ok' : 'bad';
+});
 $('#s_mode').addEventListener('change', (e) => showMode(e.target.value));
 $('#s_region').addEventListener('change', (e) => { if (e.target.value !== 'custom') { $('#s_api').value = e.target.value; $('#s_oauth').value = e.target.value; } });
 $('#s_save').addEventListener('click', async () => {

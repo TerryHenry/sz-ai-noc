@@ -153,6 +153,27 @@ show instead of the widget's own name.
 
 ![Widget catalog picker](img/picker.png)
 
+### Data source: RUCKUS AI or SmartZone
+
+The first control in **Data source and connection** chooses where this wall gets its data. Many sites run SmartZone without RUCKUS AI, so
+both are supported, one per wall:
+
+| | **RUCKUS AI** | **SmartZone controllers (direct)** |
+|---|---|---|
+| Reads | controllers onboarded to RUCKUS AI, through one Application Token | each controller's own public API (`https://<address>:8443/wsg/api/public`), through an API key per controller |
+| Controllers | all your onboarded controllers at once | a list you add, one row each (name, address, port, API key) |
+| Only here | Intent AI, connection-experience analytics | |
+| Status | working, confirmed on a live tenant | **early**: zones, APs and controller info; the rest is being added and confirmed against a real controller |
+
+Switching the source swaps the stock screens for the new source's stock screens. A layout you have edited is left alone. The widget
+picker and presets follow the source: they only offer widgets that can show data for it (SmartZone hides the RUCKUS AI-only widgets).
+
+**Add a SmartZone controller:** *Data source* → *SmartZone controllers (direct)* → **+ Add controller**, enter a name, the controller's address
+(host name or IP, no `https://`), the port (default 8443) and an API key, then **Test** (or **Save connection**, then **Test connection**).
+The wall finds the newest API version the controller supports and how it accepts the key, and shows both, for example
+*"API v13_1, key accepted as bearer, 14 zones"*. Leave **Verify certificate** off for a controller with a self-signed certificate. Use a
+read-only key: the wall only reads. SmartZone's own switch, client, WLAN and alarm data are added as each is confirmed live.
+
 ### RUCKUS AI connection
 
 | Control | Notes |

@@ -58,6 +58,10 @@ Then continue with [the common steps](#then-the-same-for-everyone).
 
 ## Then the same for everyone
 
+> **SmartZone without RUCKUS AI?** Open the editor's **Data source and connection**, choose **SmartZone controllers (direct)**,
+> and add each controller's address and an API key instead of steps 1-2 below (see [Data source](USER_GUIDE.md#data-source-ruckus-ai-or-smartzone)).
+> The SmartZone source is early: zones, APs and controller details work first.
+
 ### 1. Create a RUCKUS AI Application Token
 
 The server reads your SmartZone data through **RUCKUS AI** (`ruckus.cloud/ai`) with an **Application Token** (client credentials). In RUCKUS AI:

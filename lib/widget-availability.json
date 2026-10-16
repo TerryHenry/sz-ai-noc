@@ -1,6 +1,6 @@
 {
- "note": "Widget types with no RUCKUS AI data source. Written by scripts/widget-check.js --write-unavailable; the editor hides them. Types only, no customer data.",
- "unavailable": [
+ "note": "Widget types that cannot show data for each source. rai: written by scripts/widget-check.js --write-unavailable (live RUCKUS AI tenant). smartzone: same, against a SmartZone controller (until measured, only the RUCKUS AI analytics and Intent AI widgets are listed). Types only, no customer data.",
+ "rai": [
   "a.dpsk.expiring",
   "a.dpsk.pools",
   "a.dpsk.recent",
@@ -803,5 +803,6 @@
   "sw.log.recent",
   "sw.log.total24",
   "table.wfc_profiles"
- ]
+ ],
+ "smartzone": []
 }

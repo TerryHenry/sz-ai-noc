@@ -165,12 +165,26 @@ const handle = async (req, res) => {
         if (!canAdmin(req, url)) return json(res, 403, { error: 'Admin access requires signing in (or localhost / ?key=<NOC_ADMIN_KEY>)', login: auth.enabled() });
         if (p === '/api/settings' && req.method === 'GET') return json(res, 200, settings.get());
         if (p === '/api/settings' && req.method === 'PUT') {
+          const before = cfg.source;
           try { settings.save(await readBody(req)); } catch (e) { return json(res, 400, { error: e.message }); }
-          rai.reset(); collect.resetCaches(); schedule(); cycle();
+          rai.reset(); collect.resetCaches();
+          if (cfg.source !== before && dash.isStock(layout, before)) {   // untouched stock screens follow the data source; a layout someone edited is left alone
+            layout = dash.save(dash.defaultFor(cfg.source)); refreshNeeds(); broadcast('config', { layout, control, serverNow: Date.now() });
+          }
+          schedule(); cycle();
           return json(res, 200, settings.get());
         }
         if (p === '/api/settings/test' && req.method === 'POST') {
           if (cfg.demo) return json(res, 200, { ok: false, error: 'Server is running in demo mode (NOC_DEMO=1) — restart without it to use live data.' });
+          if (cfg.source === 'smartzone') {   // test one controller (?controller=id) or every enabled one
+            const only = url.searchParams.get('controller'); const list = (cfg.sz.controllers || []).filter((c) => c.host && c.apiKey && (only ? c.id === only : c.enabled !== false));
+            if (!list.length) return json(res, 200, { ok: false, error: 'No SmartZone controller with an address and API key — save one first' });
+            const out = await Promise.all(list.map(async (c) => { try { return { id: c.id, ok: true, ...(await collect.szClientFor(c).test()) }; } catch (e) { return { id: c.id, ok: false, error: e.message }; } }));
+            for (const r of out) if (r.ok) { const c = cfg.sz.controllers.find((x) => x.id === r.id); if (c && r.authStyle && c.authStyle !== r.authStyle) { try { settings.save({ smartzone: cfg.sz.controllers.map((x) => (x.id === c.id ? { ...x, authStyle: r.authStyle } : x)) }); } catch { /* keep going */ } } }
+            const bad = out.filter((r) => !r.ok);
+            if (bad.length === out.length) return json(res, 200, { ok: false, error: bad.map((r) => `${r.id}: ${r.error}`).join('; ') });
+            return json(res, 200, { ok: true, venues: out.reduce((n, r) => n + (Number(r.venues) || 0), 0), sample: [], summary: out.map((r) => (r.ok ? `${r.id}: ${r.summary}` : `${r.id}: FAILED ${r.error}`)).join(' · ') });
+          }
           try { return json(res, 200, { ok: true, ...(await rai.test()) }); } catch (e) { return json(res, 200, { ok: false, error: e.message }); }
         }
       }
@@ -282,7 +296,7 @@ const handle = async (req, res) => {
       }
       if (p === '/api/config/reset' && req.method === 'POST') {
         if (!canAdmin(req, url)) return json(res, 403, { error: 'Admin access requires signing in (or localhost / ?key=<NOC_ADMIN_KEY>)', login: auth.enabled() });
-        layout = dash.save(dash.DEFAULT); refreshNeeds();
+        layout = dash.save(dash.defaultFor(cfg.source)); refreshNeeds();
         broadcast('config', { layout, control, serverNow: Date.now() }); broadcastData(); cycle();
         return json(res, 200, { layout });
       }

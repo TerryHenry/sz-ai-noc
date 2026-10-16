@@ -13,7 +13,8 @@
 //   Saved:     node scripts/widget-check.js --snapshot snap.json      (made with --save snap.json; it holds your real names: keep it local)
 //   Demo:      node scripts/widget-check.js --demo                    (offline regression: the demo data with everything RUCKUS AI does not supply blanked out)
 //              --demo --raw                                            (demo data as is, R1-shaped)
-//   Options:   --write-unavailable (save the NO DATA widget types to lib/widget-availability.json: the editor hides them)   --json (machine-readable)   --all (also list the OK ones)   --group "Name" (only that group)
+//   SmartZone: SZ_HOST=... SZ_KEY=... [SZ_PORT=8443] node scripts/widget-check.js --source smartzone   (or --demo --source smartzone)
+//   Options:   --source rai|smartzone (default rai)   --write-unavailable (save the NO DATA widget types to lib/widget-availability.json: the editor hides them)   --json (machine-readable)   --all (also list the OK ones)   --group "Name" (only that group)
 // Exit code 1 when a widget is BROKEN, or when a default screen / offered preset holds a NO DATA widget. The history database goes to a scratch folder, never to ./data.
 const fs = require('node:fs');
 const os = require('node:os');
@@ -25,7 +26,9 @@ const opt = (n) => { const i = args.indexOf(`--${n}`); return i >= 0 ? args[i + 
 const env = process.env;
 
 if (!process.env.NOC_DATA_DIR) process.env.NOC_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'widget-check-'));
-if (flag('demo')) { process.env.NOC_DEMO = '1'; if (!flag('raw')) process.env.NOC_DEMO_AI = '1'; }
+const SOURCE = opt('source') === 'smartzone' ? 'smartzone' : 'rai';
+if (SOURCE === 'smartzone') process.env.NOC_SOURCE = 'smartzone';
+if (flag('demo')) { process.env.NOC_DEMO = '1'; if (SOURCE === 'smartzone') process.env.NOC_DEMO_SZ = '1'; else if (!flag('raw')) process.env.NOC_DEMO_AI = '1'; }
 if (env.RAI_CLIENT_ID) { env.R1_CLIENT_ID = env.RAI_CLIENT_ID; env.R1_CLIENT_SECRET = env.RAI_CLIENT_SECRET || ''; env.R1_TENANT_ID = env.RAI_TENANT || ''; if (env.RAI_API) env.R1_API_BASE = env.RAI_API; }
 
 const collect = require('../lib/collect');
@@ -164,8 +167,13 @@ async function getSnapshot() {
   if (file) return JSON.parse(fs.readFileSync(file, 'utf8'));
   if (flag('demo')) {
     await collect.poll(); const S = JSON.parse(JSON.stringify(collect.get()));
-    if (!flag('raw')) for (const k of Object.keys(S)) if (!SUPPLIED.has(k)) { const v = S[k]; S[k] = Array.isArray(v) ? [] : (v && typeof v === 'object' && k !== 'traffic') ? {} : k === 'traffic' ? { dt: 0, bytes: 0, down: 0, up: 0 } : v; }
+    if (SOURCE === 'rai' && !flag('raw')) for (const k of Object.keys(S)) if (!SUPPLIED.has(k)) { const v = S[k]; S[k] = Array.isArray(v) ? [] : (v && typeof v === 'object' && k !== 'traffic') ? {} : k === 'traffic' ? { dt: 0, bytes: 0, down: 0, up: 0 } : v; }
     return S;
+  }
+  if (SOURCE === 'smartzone') {
+    if (!env.SZ_HOST || !env.SZ_KEY) { console.error('Set SZ_HOST and SZ_KEY (and SZ_PORT if not 8443), or use --snapshot <file> or --demo.'); process.exit(2); }
+    require('../lib/config').sz.controllers = [{ id: 'sz1', name: 'sz1', host: env.SZ_HOST, port: Number(env.SZ_PORT) || 8443, apiKey: env.SZ_KEY, verifyTls: env.SZ_VERIFY === '1', enabled: true }];
+    await collect.poll(); const Z = collect.get(); if (Z.setup) { console.error(Z.setup); process.exit(2); } return Z;
   }
   if (!env.RAI_CLIENT_ID || !env.RAI_CLIENT_SECRET) { console.error('Set RAI_CLIENT_ID and RAI_CLIENT_SECRET (an Application Token), or use --snapshot <file> or --demo.'); process.exit(2); }
   collect.setNeeds(['analytics']);   // analytics is a slow source that is only fetched when something needs it
@@ -187,14 +195,15 @@ async function getSnapshot() {
   const summary = { widgets: results.length, ok: count('OK'), empty: count('EMPTY'), noData: count('NO DATA'), warmup: count('WARMUP'), partly: count('PARTLY'), na: count('N/A'), broken: count('BROKEN'), snapshot: { aps: (S.aps || []).length, switches: (S.switches || []).length, zones: (S.venues || []).length, controllers: (S.controllers || []).length, alarms: (S.alarms || []).length, intents: S.intents ? S.intents.total : null, analytics: Boolean(S.analytics), errors: S.errors || {} } };
   // Screens people get without choosing widgets themselves: the defaults and the presets the editor offers. They must not hold NO DATA widgets.
   const status = new Map(results.map((r) => [r.type, r.status]));
-  const offered = [...dash.DEFAULT.screens.map((sc) => ({ name: `default: ${sc.name}`, widgets: sc.widgets })), ...dash.presets().map((p) => ({ name: `preset: ${p.name}`, widgets: p.widgets }))];
+  const offered = [...dash.defaultFor(SOURCE).screens.map((sc) => ({ name: `default: ${sc.name}`, widgets: sc.widgets })), ...dash.presets().map((p) => ({ name: `preset: ${p.name}`, widgets: p.widgets }))];
   const problems = offered.map((sc) => ({ name: sc.name, bad: sc.widgets.filter((x) => status.get(x.type) === 'NO DATA').map((x) => x.type), empty: sc.widgets.filter((x) => status.get(x.type) === 'EMPTY').map((x) => x.type) })).filter((x) => x.bad.length || x.empty.length);
   const presetFail = problems.some((x) => x.bad.length);
   if (!only && !flag('write-unavailable') && !flag('json')) { /* printed below */ }
   if (flag('write-unavailable')) {
     if (only) { console.error('--write-unavailable needs the full catalog: drop --group'); process.exit(2); }
     const file = path.join(__dirname, '..', 'lib', 'widget-availability.json');
-    fs.writeFileSync(file, JSON.stringify({ note: 'Widget types with no RUCKUS AI data source. Written by scripts/widget-check.js --write-unavailable; the editor hides them. Types only, no customer data.', unavailable: results.filter((r) => r.status === 'NO DATA').map((r) => r.type).sort() }, null, 1) + '\n');
+    let cur = {}; try { cur = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { /* new file */ }
+    fs.writeFileSync(file, JSON.stringify({ ...cur, [SOURCE]: results.filter((r) => r.status === 'NO DATA').map((r) => r.type).sort() }, null, 1) + '\n');
     console.error(`wrote ${path.relative(process.cwd(), file)} (${summary.noData} widget types)`);
   }
   if (flag('json')) { console.log(JSON.stringify({ summary, coverage: cov, results }, null, 2)); process.exitCode = summary.broken || presetFail ? 1 : 0; return; }   // no process.exit: piped output would be cut off
