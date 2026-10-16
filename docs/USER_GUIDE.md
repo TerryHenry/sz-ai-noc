@@ -227,7 +227,7 @@ RUCKUS One API keys do **not** work here. The MSP and per-customer modes of RUCK
 
 *(Screenshots use synthetic demo data: `npm run demo:ai` shows the same screens without credentials.)*
 
-The **+ Preset screen…** menu adds more (prefixed *SZ-AI* for the defaults). Presets never contain widgets that have no RUCKUS AI data: those widgets are dropped, and a preset that would lose half or more of its widgets (Switch events, Throughput, Client mix, Wireless performance, RF coverage, the MSP ones…) is not offered. `npm run widgets:check` fails if a default screen or offered preset holds one.
+The **+ Preset screen…** menu adds more. Presets are all or nothing: a preset is offered for a source only when every widget in it can show that source's data, so you never get a trimmed or half-working screen, and a preset that is stock for the other source (or MSP-only) is not offered. A preset appears for a source as soon as all of its widgets work there. `npm run widgets:check` fails if a default screen or an offered preset holds a widget without data.
 
 The picker lists only widgets that can show RUCKUS AI data. It matches title, group and ID in the search box (`controller`, `intent`,
 `firmware`, `model`, `zone`…). The tag on each button shows whether you already use it (**in use ×2 · 1 here** / **unused**), and
