@@ -198,7 +198,7 @@ async function getSnapshot() {
   const summary = { widgets: results.length, ok: count('OK'), empty: count('EMPTY'), noData: count('NO DATA'), warmup: count('WARMUP'), partly: count('PARTLY'), na: count('N/A'), broken: count('BROKEN'), snapshot: { aps: (S.aps || []).length, switches: (S.switches || []).length, zones: (S.venues || []).length, controllers: (S.controllers || []).length, alarms: (S.alarms || []).length, intents: S.intents ? S.intents.total : null, analytics: Boolean(S.analytics), errors: S.errors || {} } };
   // Screens people get without choosing widgets themselves: the defaults and the presets the editor offers. They must not hold NO DATA widgets.
   const status = new Map(results.map((r) => [r.type, r.status]));
-  const offered = [...dash.defaultFor(SOURCE).screens.map((sc) => ({ name: `default: ${sc.name}`, widgets: sc.widgets })), ...dash.presets().map((p) => ({ name: `preset: ${p.name}`, widgets: p.widgets }))];
+  const offered = [...dash.defaultFor(SOURCE).screens.map((sc) => ({ name: `default: ${sc.name}`, widgets: sc.widgets })), ...dash.presetsFor(SOURCE).map((p) => ({ name: `preset: ${p.name}`, widgets: p.widgets }))];
   const problems = offered.map((sc) => ({ name: sc.name, bad: sc.widgets.filter((x) => status.get(x.type) === 'NO DATA').map((x) => x.type), empty: sc.widgets.filter((x) => status.get(x.type) === 'EMPTY').map((x) => x.type) })).filter((x) => x.bad.length || x.empty.length);
   const presetFail = problems.some((x) => x.bad.length);
   if (!only && !flag('write-unavailable') && !flag('json')) { /* printed below */ }

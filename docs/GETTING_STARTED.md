@@ -58,9 +58,9 @@ Then continue with [the common steps](#then-the-same-for-everyone).
 
 ## Then the same for everyone
 
-> **SmartZone without RUCKUS AI?** Open the editor's **Data source and connection**, choose **SmartZone controllers (direct)**,
-> and add each controller's address with a read-only administrator's user name and password instead of steps 1-2 below (see [Data source](USER_GUIDE.md#data-source-ruckus-ai-or-smartzone)).
-> The SmartZone source is early: zones, APs and controller details work first.
+> **SmartZone, with or without RUCKUS AI?** Open the editor's **Data sources and connections** and add each SmartZone controller's address with a
+> read-only administrator's user name and password. Use it instead of steps 1-2 below if you have no RUCKUS AI, or in addition to them: each screen shows one
+> source (see [Data sources](USER_GUIDE.md#data-sources-ruckus-ai-and-smartzone)).
 
 ### 1. Create a RUCKUS AI Application Token
 

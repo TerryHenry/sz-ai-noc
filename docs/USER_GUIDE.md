@@ -153,23 +153,33 @@ show instead of the widget's own name.
 
 ![Widget catalog picker](img/picker.png)
 
-### Data source: RUCKUS AI or SmartZone
+### Data sources: RUCKUS AI and SmartZone
 
-The first control in **Data source and connection** chooses where this wall gets its data. Many sites run SmartZone without RUCKUS AI, so
-both are supported, one per wall:
+Many sites run SmartZone without RUCKUS AI, and some have both, so the wall can read both **at the same time**. In **Data sources and
+connections** each source is its own section with its own on/off switch:
 
 | | **RUCKUS AI** | **SmartZone controllers (direct)** |
 |---|---|---|
-| Reads | controllers onboarded to RUCKUS AI, through one Application Token | each controller's own public API (`https://<address>:8443/wsg/api/public`), through a read-only administrator's user name and password per controller (service-ticket sign-in) |
-| Controllers | all your onboarded controllers at once | a list you add, one row each (name, address, port, user name, password) |
+| Reads | controllers onboarded to RUCKUS AI, through one Application Token | each controller's own public API (`https://<address>:8443/wsg/api/public`), signed in with a read-only administrator (service ticket) |
+| On / off | one checkbox (the token stays saved when it is off) | one checkbox per controller, plus the list (name, address, port, user name, password) |
 | Only here | Intent AI, connection-experience analytics | |
 | Status | working, confirmed on a live tenant | **working, early**: confirmed against a live SmartZone 7.2 (API v14_0) for zones, APs (live status, model, firmware, IP, client counts, channels), WLANs and the controller. Client and alarm lists are read but their fields are unconfirmed (that controller had none), and no switch data is read (the controller has no switch API) |
 
-SmartZone's stock screens are **Overview**, **Zones**, **Wi-Fi networks** and **Clients**. Widgets that need switches, switch ports, DPSK, guests,
-Wi-Fi calling profiles, Intent AI or the RUCKUS AI analytics are hidden for it (`npm run widgets:check -- --source smartzone`).
+**One source per screen.** Every screen shows exactly one source, chosen in the screen's **Data** box (it appears once both sources are on).
+A screen never mixes the two: its tiles, tables, charts, trends and the venue list all come from that source. Screens that do not choose
+follow the **Preferred source**, which also decides the header summary, the order of the stock screens and which source's data is used for the
+drill-down. Alerts (see *Alerts*) are evaluated for each source on its own and named after it when both are on.
 
-Switching the source swaps the stock screens for the new source's stock screens. A layout you have edited is left alone. The widget
-picker and presets follow the source: they only offer widgets that can show data for it (SmartZone hides the RUCKUS AI-only widgets).
+**Widgets and screens are split by source.** Every widget and preset knows which sources it can show data for. The editor's source selector
+(next to **+ Preset screen…**) chooses what to offer: **For this screen** (the default: only what works with the screen's own source),
+**For RUCKUS AI**, **For SmartZone**, or **Everything**. Buttons in the widget picker carry a *RUCKUS AI only* / *SmartZone only* tag when a widget
+works for just one source, and the stock screens are presets of their own: *RUCKUS AI Overview / Zones / Switches / Intent AI* and
+*SmartZone Overview / Zones / Wi-Fi networks / Clients*. Widgets already on a screen always stay visible. Widgets that need switches, switch ports,
+DPSK, guests, Wi-Fi calling profiles, Intent AI or the RUCKUS AI analytics are hidden for SmartZone (`npm run widgets:check -- --source smartzone`).
+
+**Stock screens follow what is on.** Turning a source on or off swaps an untouched stock layout for the stock layout of what is now on (with both
+on, both sets, named "RUCKUS AI · Overview", "SmartZone · Overview" and so on). A layout you have edited is left alone; use the editor's
+**Reset to defaults** to get the stock screens back. A screen whose source is switched off shows the preferred source instead.
 
 **Sign-in.** SmartZone has no API key. The REST API signs in with an administrator's user name and password and answers with a *service
 ticket* that the wall then sends with every request, signing in again when the ticket expires. So create a dedicated administrator for the wall:

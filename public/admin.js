@@ -6,13 +6,26 @@ const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 $('#view').href = api('/'); $('#launch').href = api('/launch.html');
 
-let layout, catalog = [], presets = [], venues = [], customers = [], cur = 0, curView = -1, showPicker = false, unusedOnly = false, showUnavail = false;
+let layout, catalog = [], presets = [], venues = [], customers = [], cur = 0, curView = -1, showPicker = false, unusedOnly = false, srcView = 'this', wallSource = 'rai', enabledSrc = ['rai'], plainDemo = false, presetsBy = {};
+const SRC_NAME = { rai: 'RUCKUS AI', smartzone: 'SmartZone' };
 const SC = () => (curView < 0 ? layout.screens : layout.views[curView].screens);   // screens of the view being edited (-1 = Main)
 const def = (t) => catalog.find((c) => c.type === t);
+// What the editor offers follows the data source: 'this' = the source this wall uses, or look at another source's widgets and screens, or everything.
+const screenSrc = () => { const sc = layout && SC()[cur]; return (sc && sc.source && enabledSrc.includes(sc.source) ? sc.source : wallSource); };   // the source the current screen shows
+const srcOk = (c) => (srcView === 'all' || (srcView === 'this' && plainDemo) ? true : (c.sources || []).includes(srcView === 'this' ? screenSrc() : srcView));
+function curPresets() {
+  if (srcView === 'this') return plainDemo ? presets : (presetsBy[screenSrc()] || []);
+  if (srcView === 'all') { const seen = new Set(); return [...(presetsBy[wallSource] || []), ...Object.values(presetsBy).flat()].filter((p) => !seen.has(p.name) && seen.add(p.name)); }
+  return presetsBy[srcView] || [];
+}
+const srcSelect = () => `<select id="srcView" title="Which source's widgets and screens to offer. Widgets that cannot show the chosen source's data are hidden.">
+  <option value="this" ${srcView === 'this' ? 'selected' : ''}>For this screen (${SRC_NAME[screenSrc()] || screenSrc()})</option>
+  ${Object.keys(SRC_NAME).filter((k) => k !== screenSrc()).map((k) => `<option value="${k}" ${srcView === k ? 'selected' : ''}>For ${SRC_NAME[k]}</option>`).join('')}
+  <option value="all" ${srcView === 'all' ? 'selected' : ''}>Everything</option></select>`;
 
 async function load() {
   const [c, k] = await Promise.all([fetch(api('/api/config')).then((r) => r.json()), fetch(api('/api/catalog')).then((r) => r.json())]);
-  layout = c.layout; venues = c.venues || []; customers = c.customers || []; catalog = k.widgets; presets = k.presets || [];
+  layout = c.layout; venues = c.venues || []; if (c.enabledSources) enabledSrc = c.enabledSources; customers = c.customers || []; catalog = k.widgets; presets = k.presets || []; presetsBy = k.presetsBySource || {}; wallSource = k.source || 'rai'; enabledSrc = k.enabledSources || [wallSource]; plainDemo = Boolean(k.plainDemo);
   if (!c.canAdmin) say('Read-only: editing requires localhost or ?key=<NOC_ADMIN_KEY>', 'bad');
   render();
   if (typeof renderTicker === 'function') renderTicker();   // the number of displays is known now
@@ -97,13 +110,14 @@ function render() {
     (curView >= 0 ? ` <label class="inline">Name <input id="vname" value="${esc(layout.views[curView].name)}" maxlength="40" style="width:11rem"></label> <label class="inline">Rotate every <input id="vrot" type="number" min="0" max="3600" value="${layout.views[curView].rotateSeconds}" style="width:4.5rem"> s</label> <button data-act="delview" class="danger">Delete view</button>` : '');
   renderSchedules(); renderPlaylists();
   if (typeof renderDesigner === 'function') setTimeout(renderDesigner, 0);
-  $('#tabs').innerHTML = SC().map((s, i) => `<button data-tab="${i}" class="${i === cur ? 'on' : ''}">${esc(s.name)}</button>`).join('') + '<button data-act="addscreen">+ Screen</button>' + (presets.length ? `<select id="preset"><option value="">+ Preset screen…</option>${presets.map((p, i) => `<option value="${i}">${esc(p.name)}</option>`).join('')}</select>` : '');
+  $('#tabs').innerHTML = SC().map((s, i) => `<button data-tab="${i}" class="${i === cur ? 'on' : ''}">${esc(s.name)}</button>`).join('') + '<button data-act="addscreen">+ Screen</button>' + (curPresets().length ? `<select id="preset"><option value="">+ Preset screen…</option>${curPresets().map((p, i) => `<option value="${i}">${esc(p.name)}</option>`).join('')}</select>` : '') + srcSelect();
   const s = SC()[cur];
-  const venueOpts = (sel) => `<option value="">All venues</option>` + venues.map((v) => `<option value="${esc(v.id)}" ${v.id === sel ? 'selected' : ''}>${esc(v.customer ? `${v.customer} / ${v.name}` : v.name)}</option>`).join('');
+  const venueOpts = (sel) => `<option value="">All venues</option>` + venues.filter((v) => !v.src || v.src === screenSrc()).map((v) => `<option value="${esc(v.id)}" ${v.id === sel ? 'selected' : ''}>${esc(v.customer ? `${v.customer} / ${v.name}` : v.name)}</option>`).join('');
   const customerOpts = (sel) => `<option value="">All customers</option>` + customers.map((c) => `<option value="${esc(c.id)}" ${c.id === sel ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
   $('#screen').innerHTML = `
     <div style="display:flex;gap:.6rem;align-items:flex-end;margin-bottom:.8rem;flex-wrap:wrap">
       <label>Screen name<input id="sname" value="${esc(s.name)}" maxlength="40"></label>
+      ${enabledSrc.length > 1 ? `<label title="Which data source this screen shows. A screen never mixes sources.">Data<select id="ssrc">${enabledSrc.map((k) => `<option value="${k}" ${(s.source || wallSource) === k ? 'selected' : ''}>${SRC_NAME[k]}</option>`).join('')}</select></label>` : ''}
       <label title="Spread this screen's widgets across several displays. Each display opens /?display=N and all rotate together.">Displays<input id="sdisp" type="number" min="1" max="6" value="${s.displays || 1}"></label>
       <label ${(s.displays || 1) > 1 ? '' : 'style="opacity:.45"'} title="Auto: widgets are cut into groups of similar size, in order. Manual: choose a display for each widget below.">Split<select id="ssplit"><option value="auto" ${s.split !== 'manual' ? 'selected' : ''}>Auto (balanced)</option><option value="manual" ${s.split === 'manual' ? 'selected' : ''}>Manual</option></select></label>
       <button data-act="design" class="primary" title="Open the visual layout designer: drag widgets to reorder or place them, drag the corner to resize">🎨 Design layout</button>
@@ -136,12 +150,13 @@ const openGroups = new Set();
 function pickBtn(c, u) {
   const e = u.get(c.type);
   const tag = e ? `<span class="tag used" title="Used on: ${esc(e.where.join(', '))}">in use ×${e.total}${e.here ? ` · ${e.here} here` : ''}</span>` : '<span class="tag">unused</span>';
-  return `<button data-add="${esc(c.type)}" class="${e ? 'is-used' : ''}" title="${esc(c.type)}"><span>${esc(c.title)}</span>${tag}</button>`;
+  const srcs = c.sources || []; const badge = srcs.length === 2 ? '' : `<span class="tag src">${srcs.length ? SRC_NAME[srcs[0]] + ' only' : 'no data yet'}</span>`;
+  return `<button data-add="${esc(c.type)}" class="${e ? 'is-used' : ''}" title="${esc(c.type)}"><span>${esc(c.title)}</span>${badge}${tag}</button>`;
 }
 function pickerBody() {
   const u = usage();
   const terms = pickQ.toLowerCase().split(/\s+/).filter(Boolean);
-  const items = catalog.filter((c) => (!unusedOnly || !u.has(c.type)) && (customers.length || !c.msp || u.has(c.type)) && (showUnavail || !c.unavailable || u.has(c.type)) && terms.every((t) => `${c.title} ${c.group} ${c.sub} ${c.type}`.toLowerCase().includes(t)));
+  const items = catalog.filter((c) => (!unusedOnly || !u.has(c.type)) && (customers.length || !c.msp || u.has(c.type)) && (srcOk(c) || u.has(c.type)) && terms.every((t) => `${c.title} ${c.group} ${c.sub} ${c.type}`.toLowerCase().includes(t)));
   if (!items.length) return '<p style="color:var(--muted)">No widgets match.</p>';
   return [...new Set(items.map((c) => c.group))].map((g) => {
     const gi = items.filter((c) => c.group === g);
@@ -153,12 +168,12 @@ function pickerBody() {
 }
 function pickerHtml() {
   const u = usage();
-  const shown = catalog.filter((c) => (customers.length || !c.msp || u.has(c.type)) && (showUnavail || !c.unavailable || u.has(c.type)));
-  const inUse = catalog.filter((c) => u.has(c.type)).length; const nUn = catalog.filter((c) => c.unavailable).length;
+  const shown = catalog.filter((c) => (customers.length || !c.msp || u.has(c.type)) && (srcOk(c) || u.has(c.type)));
+  const inUse = catalog.filter((c) => u.has(c.type)).length;
   return `<div class="picker-head"><strong>${inUse} of ${shown.length}</strong> widgets in use
       <input id="pq" type="search" placeholder="Search ${shown.length} widgets…  try: dpsk, vlan, poe, guest, ssid" value="${esc(pickQ)}">
       <label class="inline"><input type="checkbox" id="unusedOnly" ${unusedOnly ? 'checked' : ''}> Unused only</label>
-      ${nUn ? `<label class="inline" title="Widgets that need data RUCKUS AI does not provide (clients, switch ports, DPSK, guests, ...). They stay empty."><input type="checkbox" id="showUnavail" ${showUnavail ? 'checked' : ''}> Show ${nUn} without RUCKUS AI data</label>` : ''}</div>
+      <span class="tag" title="Change this next to the preset list above">showing widgets ${srcView === 'this' ? `for ${SRC_NAME[screenSrc()] || screenSrc()}` : srcView === 'all' ? 'for every source' : `for ${SRC_NAME[srcView]}`}</span></div>
     <div id="pickerBody">${pickerBody()}</div>`;
 }
 document.addEventListener('input', (e) => {
@@ -179,13 +194,14 @@ document.addEventListener('toggle', (e) => { const d = e.target; if (d.classList
 document.addEventListener('change', (e) => {
   if (e.target.tagName === 'SELECT' && e.target.dataset && (e.target.dataset.th || e.target.dataset.sf)) { e.target.dispatchEvent(new Event('input', { bubbles: true })); return; }
   if (e.target.id === 'sdisp') { const sc = SC()[cur]; sc.displays = Math.max(1, Math.min(6, Number(e.target.value) || 1)); sc.widgets.forEach((w) => { if ((w.display || 1) > sc.displays) w.display = sc.displays; }); render(); return; }
+  if (e.target.id === 'ssrc') { SC()[cur].source = e.target.value; render(); return; }
   if (e.target.id === 'ssplit') { SC()[cur].split = e.target.value; render(); return; }
   if (e.target.id === 'autofit') { SC()[cur].auto = e.target.checked; return; }
   if (e.target.id === 'preset' && e.target.value !== '') {
-    const pr = presets[Number(e.target.value)];
+    const pr = curPresets()[Number(e.target.value)];
     SC().push({ name: pr.name, widgets: pr.widgets.map((x) => ({ type: x.type, venue: '', w: x.w || (catalog.find((c) => c.type === x.type) || {}).w || 3, h: x.h || (catalog.find((c) => c.type === x.type) || {}).h || 2, match: x.match || '', title: x.title || '', params: x.params || {} })) });
     cur = SC().length - 1; render(); say(`Added "${pr.name}" — click Save & apply to keep it.`); return;
-  } if (e.target.id === 'unusedOnly') { unusedOnly = e.target.checked; render(); } if (e.target.id === 'showUnavail') { showUnavail = e.target.checked; render(); } });
+  } if (e.target.id === 'unusedOnly') { unusedOnly = e.target.checked; render(); } if (e.target.id === 'srcView') { srcView = e.target.value; render(); } });
 
 document.addEventListener('click', (e) => {
   const t = e.target.closest('button'); if (!t) return;
@@ -254,12 +270,18 @@ function szRead() {   // current field values back into szRows (keys left blank 
   });
 }
 const szBody = () => szRows.map((c) => ({ id: c.id, name: c.name, host: c.host, port: c.port, username: c.username || '', password: c.password || '', verifyTls: Boolean(c.verifyTls), enabled: c.enabled !== false }));
-function showSource(src) { $('#srcSz').style.display = src === 'smartzone' ? '' : 'none'; $('#srcRai').style.display = src === 'smartzone' ? 'none' : ''; }
+function showSource() { /* both sections are always shown: each source has its own on/off */ }
 function fillSettings(s) {
-  $('#s_source').value = s.source || 'rai'; showSource(s.source || 'rai');
+  $('#s_source').value = s.source || 'rai'; $('#s_ai_on').checked = s.aiEnabled !== false;
+  if (s.enabledSources) enabledSrc = s.enabledSources;
   szRows = (s.smartzone || []).map((c) => ({ ...c, password: '' })); szDraw();
   _fillRai(s);
-  if (s.source === 'smartzone') { const n = szRows.filter((c) => c.enabled !== false && c.host && c.username && c.passwordSet).length; $('#connState').textContent = s.demo ? 'DEMO mode — synthetic data' : n ? `SmartZone: ${n} controller${n === 1 ? '' : 's'}` : 'SmartZone: not set up yet'; if (!s.demo && !n) $('#conn').open = true; }
+  const aiOk = Boolean(s.clientId && s.secretSet);
+  const nOn = szRows.filter((c) => c.enabled !== false && c.host && c.username && c.passwordSet).length;
+  $('#aiState').textContent = !aiOk ? 'not set up' : s.aiEnabled === false ? 'connected, switched off' : 'on';
+  $('#szState').textContent = !szRows.length ? 'none added' : `${nOn} of ${szRows.length} controller${szRows.length === 1 ? '' : 's'} on`;
+  $('#connState').textContent = s.demo ? 'DEMO mode — synthetic data' : `RUCKUS AI: ${!aiOk ? 'not set up' : s.aiEnabled === false ? 'off' : 'on'} · SmartZone: ${nOn} controller${nOn === 1 ? '' : 's'} on`;
+  if (!s.demo && !(s.enabledSources || []).length) $('#conn').open = true;
 }
 function _fillRai(s) {
   $('#s_tenant').value = s.tenantId; $('#s_client').value = s.clientId; $('#s_secret').value = '';
@@ -267,11 +289,6 @@ function _fillRai(s) {
   $('#s_api').value = s.apiBase; $('#s_oauth').value = s.oauthBase; $('#s_poll').value = s.pollSeconds;
   $('#s_region').value = REGIONS.includes(s.apiBase) ? s.apiBase : 'custom';
   $('#s_mode').value = 'single'; showMode('single');
-  const ok = s.clientId && s.secretSet;
-  const msp = s.msp || {}, nc = (s.customers || []).length;
-  const state = s.mode === 'msp' ? (msp.tenantId && msp.secretSet ? 'MSP account' : 'MSP account — not set up yet') : s.mode === 'customers' ? (nc ? `${(s.customers || []).filter((c) => c.enabled !== false).length} of ${nc} customers` : 'customers — none added yet') : ok ? 'configured' : 'not configured';
-  $('#connState').textContent = s.demo ? 'DEMO mode — synthetic data' : state;
-  if (!s.demo && /not|none/.test(state)) $('#conn').open = true;
 }
 async function loadSettings() {
   const r = await fetch(api('/api/settings'));
@@ -284,33 +301,44 @@ $('#s_source').addEventListener('change', async (e) => {
   await Promise.all([loadSettings(), load()]);   // the stock screens (and the widget picker) follow the source
   if (msg) msg.textContent = '';
 });
+$('#s_ai_on').addEventListener('change', async (e) => {
+  const r = await fetch(api('/api/settings'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ aiEnabled: e.target.checked }) });
+  if (!r.ok) { sMsg((await r.json()).error || 'Save failed', 'bad'); return; }
+  await Promise.all([loadSettings(), load()]);
+});
+$('#szList').addEventListener('change', async (e) => {
+  if (!e.target.matches('[data-k="enabled"]')) return; szRead();
+  const r = await fetch(api('/api/settings'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ smartzone: szBody() }) });
+  if (!r.ok) { $('#s_msg_sz').textContent = (await r.json()).error || 'Save failed'; return; }
+  await Promise.all([loadSettings(), load()]);
+});
 $('#sz_add').addEventListener('click', () => { szRead(); szRows.push({ id: '', name: '', host: '', port: 8443, verifyTls: false, enabled: true }); szDraw(); });
 $('#szList').addEventListener('click', async (e) => {
   const b = e.target.closest('button[data-act]'); if (!b) return; szRead();
   const row = b.closest('[data-i]'); const i = Number(row.dataset.i);
   if (b.dataset.act === 'szDel') { szRows.splice(i, 1); szDraw(); return; }
   const out = row.querySelector('[data-out]'); out.textContent = ' saving…';
-  const r = await fetch(api('/api/settings'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'smartzone', smartzone: szBody() }) });
+  const r = await fetch(api('/api/settings'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ smartzone: szBody() }) });
   const j = await r.json(); if (!r.ok) { out.textContent = ' ✗ ' + (j.error || 'save failed'); return; }
   const saved = (j.smartzone || [])[i]; out.textContent = ' testing…';
-  const t = await (await fetch(api(`/api/settings/test?controller=${encodeURIComponent(saved ? saved.id : '')}`), { method: 'POST' })).json();
+  const t = await (await fetch(api(`/api/settings/test?source=smartzone&controller=${encodeURIComponent(saved ? saved.id : '')}`), { method: 'POST' })).json();
   out.textContent = t.ok ? ' ✓ ' + t.summary : ' ✗ ' + t.error; out.className = t.ok ? 'ok' : 'bad'; fillSettings(j);
 });
 $('#s_save_sz').addEventListener('click', async () => {
   szRead(); const m = $('#s_msg_sz');
-  const r = await fetch(api('/api/settings'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'smartzone', smartzone: szBody(), pollSeconds: $('#s_poll').value }) });
+  const r = await fetch(api('/api/settings'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ smartzone: szBody(), pollSeconds: $('#s_poll').value }) });
   const j = await r.json(); if (!r.ok) { m.textContent = j.error || 'Save failed'; m.className = 'bad'; return; }
   fillSettings(j); $('#s_msg_sz').textContent = 'Saved — polling with the new settings. Use Test connection to verify.'; $('#s_msg_sz').className = 'ok';
 });
 $('#s_test_sz').addEventListener('click', async () => {
   const m = $('#s_msg_sz'); m.textContent = 'Testing…'; m.className = '';
-  const j = await (await fetch(api('/api/settings/test'), { method: 'POST' })).json();
+  const j = await (await fetch(api('/api/settings/test?source=smartzone'), { method: 'POST' })).json();
   m.textContent = j.ok ? 'Connected — ' + j.summary : j.error; m.className = j.ok ? 'ok' : 'bad';
 });
 $('#s_mode').addEventListener('change', (e) => showMode(e.target.value));
 $('#s_region').addEventListener('change', (e) => { if (e.target.value !== 'custom') { $('#s_api').value = e.target.value; $('#s_oauth').value = e.target.value; } });
 $('#s_save').addEventListener('click', async () => {
-  const body = { mode: 'single', tenantId: $('#s_tenant').value, clientId: $('#s_client').value, clientSecret: $('#s_secret').value, apiBase: $('#s_api').value, oauthBase: $('#s_oauth').value, pollSeconds: $('#s_poll').value };
+  const body = { aiEnabled: $('#s_ai_on').checked, mode: 'single', tenantId: $('#s_tenant').value, clientId: $('#s_client').value, clientSecret: $('#s_secret').value, apiBase: $('#s_api').value, oauthBase: $('#s_oauth').value, pollSeconds: $('#s_poll').value };
   const r = await fetch(api('/api/settings'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const j = await r.json();
   if (!r.ok) return sMsg(j.error || 'Save failed', 'bad');
@@ -319,7 +347,7 @@ $('#s_save').addEventListener('click', async () => {
 $('#s_test').addEventListener('click', async () => {
   sMsg('Testing…', ''); $('#s_test').disabled = true;
   try {
-    const j = await (await fetch(api('/api/settings/test'), { method: 'POST' })).json();
+    const j = await (await fetch(api('/api/settings/test?source=rai'), { method: 'POST' })).json();
     if (j.ok) sMsg(`Connected — ${j.summary || (j.venues + ' venues')}${j.sample && j.sample.length ? ': ' + j.sample.join(', ') : ''}`); else sMsg(j.error, 'bad');
   } catch (e) { sMsg(e.message, 'bad'); }
   $('#s_test').disabled = false;

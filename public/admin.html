@@ -37,6 +37,8 @@
   .picker button .tag { margin-top: .15rem; }
   .tag { font-size: .7rem; color: var(--faint); white-space: nowrap; }
   .tag.used { color: var(--ok); }
+  .srcbox { border:1px solid var(--line); border-radius:.5rem; padding:.7rem .9rem; margin:.7rem 0; }
+  .tag.src { color: var(--accent, #7cb7ff); }
   .picker-head { margin-top: .8rem; color: var(--muted); display: flex; gap: 1rem; align-items: center; }
   label.inline { flex-direction: row; align-items: center; gap: .4rem; text-transform: none; letter-spacing: 0; font-size: .85rem; }
   .thr-group { display: flex; gap: .6rem; } .thr { display: flex; gap: .25rem; } .thr input { width: 5rem; } .days { display: flex; gap: .5rem; flex-wrap: wrap; }
@@ -90,25 +92,17 @@
     <button class="primary" id="save">Save &amp; apply</button>
   </div>
   <details class="panel" id="conn">
-    <summary style="cursor:pointer;font-weight:600">Data source and connection <span id="connState" style="font-weight:400;color:var(--muted);margin-left:.6rem"></span></summary>
+    <summary style="cursor:pointer;font-weight:600">Data sources and connections <span id="connState" style="font-weight:400;color:var(--muted);margin-left:.6rem"></span></summary>
     <div class="top" style="margin:.7rem 0">
       <label style="display:none">Mode
         <select id="s_mode"><option value="single">One RUCKUS One account</option><option value="msp">MSP — one key for all my customers</option><option value="customers">MSP — a separate key for each customer</option></select></label>
-      <label title="Where this wall gets its data. RUCKUS AI reads controllers onboarded to RUCKUS AI; SmartZone (direct) reads the controllers' own API, for sites without RUCKUS AI.">Data source
-        <select id="s_source"><option value="rai">RUCKUS AI (ruckus.cloud/ai)</option><option value="smartzone">SmartZone controllers (direct)</option></select></label>
+      <label title="Used for screens that do not choose a source, for the stock screens' order, and for the header summary and alerts when both sources are on.">Preferred source
+        <select id="s_source"><option value="rai">RUCKUS AI</option><option value="smartzone">SmartZone</option></select></label>
       <label>Poll every (sec)<input id="s_poll" type="number" min="15" max="3600"></label>
     </div>
-    <div id="srcSz" style="display:none">
-      <p style="color:var(--muted);margin:.6rem 0">Add each SmartZone controller by address, with the user name and password of a <b>read-only administrator</b> (create one in SmartZone under Administration → Admin and Roles; the account must be allowed to use the REST API). The wall signs in to the controller's public API at <code>https://&lt;address&gt;:&lt;port&gt;/wsg/api/public</code> with a service ticket and only reads. The password is stored on this server and never sent back to the browser. Widgets that need RUCKUS AI (Intent AI, connection-experience analytics) are hidden for this source.</p>
-      <div id="szList"></div>
-      <div style="display:flex;gap:.6rem;align-items:center;margin-top:.8rem">
-        <button id="sz_add">+ Add controller</button>
-        <button class="primary" id="s_save_sz">Save connection</button>
-        <button id="s_test_sz">Test connection</button>
-        <span id="s_msg_sz" style="color:var(--muted)"></span>
-      </div>
-    </div>
-    <div id="srcRai">
+    <p style="color:var(--muted);margin:.4rem 0 .8rem">RUCKUS AI and SmartZone can both be on. Each <b>screen</b> shows one of them (set it in the screen's <i>Data</i> box); a screen never mixes the two.</p>
+    <div id="srcRai" class="srcbox">
+    <h3 style="margin:.2rem 0"><label class="inline" style="font-weight:600"><input type="checkbox" id="s_ai_on"> RUCKUS AI</label> <span id="aiState" style="font-weight:400;color:var(--muted);font-size:.85rem"></span></h3>
     <div id="modeSingle">
     <p style="color:var(--muted);margin:.6rem 0">Create an Application Token in RUCKUS AI (Administration &rarr; Developers &rarr; Application Tokens). RUCKUS One API keys do not work here. The secret is stored on this server in <code>data/settings.json</code> and is never sent back to the browser.</p>
     <div class="top">
@@ -145,6 +139,17 @@
       <span id="mspMsg"></span>
     </div>
     </div>
+    </div>
+    <div id="srcSz" class="srcbox">
+      <h3 style="margin:.2rem 0"><span>SmartZone controllers</span> <span id="szState" style="font-weight:400;color:var(--muted);font-size:.85rem"></span></h3>
+      <p style="color:var(--muted);margin:.6rem 0">Add each SmartZone controller by address, with the user name and password of a <b>read-only administrator</b> (create one in SmartZone under Administration → Admin and Roles; the account must be allowed to use the REST API). The wall signs in to the controller's public API at <code>https://&lt;address&gt;:&lt;port&gt;/wsg/api/public</code> with a service ticket and only reads. The password is stored on this server and never sent back to the browser. Widgets that need RUCKUS AI (Intent AI, connection-experience analytics) are hidden for this source.</p>
+      <div id="szList"></div>
+      <div style="display:flex;gap:.6rem;align-items:center;margin-top:.8rem">
+        <button id="sz_add">+ Add controller</button>
+        <button class="primary" id="s_save_sz">Save connection</button>
+        <button id="s_test_sz">Test connection</button>
+        <span id="s_msg_sz" style="color:var(--muted)"></span>
+      </div>
     </div>
     <div style="display:flex;gap:.6rem;align-items:center;margin-top:.8rem"><button id="s_diag">Diagnostics</button> <span id="s_msg2" style="color:var(--muted);font-size:.85rem">Shows exactly what the data source returns (counts, errors).</span></div>
   <pre id="diag" style="display:none;max-height:22rem;overflow:auto;background:var(--panel-2);border:1px solid var(--line);border-radius:.4rem;padding:.6rem;margin-top:.8rem;font-size:.75rem"></pre>

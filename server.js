@@ -10,6 +10,7 @@ const dash = require('./lib/dashboard');
 const widgets = require('./lib/widgets');
 const settings = require('./lib/settings');
 const rai = require('./lib/rai');
+const sources = require('./lib/sources');
 const rules = require('./lib/rules');
 const notify = require('./lib/notify');
 const report = require('./lib/report');
@@ -69,11 +70,24 @@ function summaryOf(S) { return { aps: S.aps.length, apsUp: S.aps.filter(upS).len
 const applyTitle = (wd, p) => (wd.title && p.kind !== 'error' ? { ...p, title: wd.title } : p);
 // Viewer drill-down: ?venue=<id> pins widgets without their own venue; ?customer=<id> (or venue=c:<id>) pins them to a customer (MSP mode).
 const scoped = (wd, venue) => (!venue || wd.venue || wd.customer ? wd : venue.startsWith('c:') ? { ...wd, customer: venue.slice(2) } : { ...wd, venue });
+// Each screen shows one source: its own `source` when that source is enabled, otherwise the preferred one.
+const snapOf = (screen) => collect.get(sources.of(screen));
+const SRC_LABEL = { rai: 'RUCKUS AI', smartzone: 'SmartZone' };
+// Errors for the banner: the preferred source's as before; another enabled source's are added with its name in front.
+function mergedErrors() {
+  const on = sources.enabled(); const out = { ...collect.get().errors };
+  for (const src of on) if (src !== sources.primary()) { const S = collect.get(src); for (const [k, v] of Object.entries((S && S.errors) || {})) out[`${SRC_LABEL[src]}: ${k}`] = v; }
+  return out;
+}
 function buildData(venue = '') {
-  const S = collect.get();
+  const P = collect.get();
   const out = {};
-  for (const wd of dash.allWidgets(layout)) out[wd.id] = applyTitle(wd, applyThresholds(wd, widgets.compute(scoped(wd, venue), S)));
-  return { at: S.at, serverNow: Date.now(), view: dash.scheduledView(layout), venue, source: S.source, setup: S.setup || '', starting: Boolean(S.starting), errors: S.errors, pollSeconds: cfg.pollSeconds, alerts: rules.active(), summary: summaryOf(venue.startsWith('c:') ? widgets.customerView(S, venue.slice(2)) : S), ticker: feeds.ticker(), widgets: out };
+  for (const sc of dash.allScreens(layout)) {
+    const S = snapOf(sc);
+    for (const wd of sc.widgets) out[wd.id] = applyTitle(wd, applyThresholds(wd, widgets.compute(scoped(wd, venue), S)));
+  }
+  const S = P;
+  return { at: S.at, serverNow: Date.now(), view: dash.scheduledView(layout), venue, source: S.source, sources: sources.enabled(), setup: S.setup || '', starting: Boolean(S.starting), errors: mergedErrors(), pollSeconds: cfg.pollSeconds, alerts: rules.active(), summary: summaryOf(venue.startsWith('c:') ? widgets.customerView(S, venue.slice(2)) : S), ticker: feeds.ticker(), widgets: out };
 }
 // One payload per distinct drill-down venue among the connected clients.
 function broadcastData() {
@@ -90,15 +104,15 @@ function broadcast(event, data) {
 
 // Drill-down venue from ?venue= — must be a real venue id.
 const venueParam = (url) => {
-  const S = collect.get(); const cu = url.searchParams.get('customer') || ''; if (cu && (S.customers || []).some((c) => c.id === cu)) return `c:${cu}`;
-  const v = url.searchParams.get('venue') || ''; return v.startsWith('c:') ? ((S.customers || []).some((c) => `c:${c.id}` === v) ? v : '') : S.venues.some((x) => x.id === v) ? v : '';
+  const S = collect.get(); const allVenues = Object.values(collect.all()).flatMap((x) => x.venues || []); const cu = url.searchParams.get('customer') || ''; if (cu && (S.customers || []).some((c) => c.id === cu)) return `c:${cu}`;
+  const v = url.searchParams.get('venue') || ''; return v.startsWith('c:') ? ((S.customers || []).some((c) => `c:${c.id}` === v) ? v : '') : allVenues.some((x) => x.id === v) ? v : '';
 };
 
 // ---- reports ----
 function reportHtml(rep) {
   const view = dash.viewByName(layout, rep.view); const S = collect.get();
   const screens = rep.screen === '*' ? view.screens : view.screens.filter((x) => x.name === rep.screen);
-  const data = {}; for (const sc of screens) for (const wd of sc.widgets) data[wd.id] = applyTitle(wd, applyThresholds(wd, widgets.compute(wd, S)));
+  const data = {}; for (const sc of screens) for (const wd of sc.widgets) data[wd.id] = applyTitle(wd, applyThresholds(wd, widgets.compute(wd, snapOf(sc))));
   return report.render({ title: rep.name, subtitle: `${layout.title} · ${view.name}${rep.screen === '*' ? '' : ' · ' + rep.screen}`, screens, data, source: S.source === 'demo' ? 'demo data' : 'live data' });
 }
 async function runReport(rep) {
@@ -154,7 +168,7 @@ const handle = async (req, res) => {
       if (p === '/api/logout' && req.method === 'POST') { auth.logout(req); res.setHeader('Set-Cookie', auth.clearCookie(secureReq(req))); return json(res, 200, { ok: true }); }
       if (p === '/api/auth' && req.method === 'GET') { const sess = auth.session(req); return json(res, 200, { ...auth.info(), user: sess ? sess.user : '', canAdmin: canAdmin(req, url) }); }
       if (!canView(req, url)) return json(res, 401, { error: 'Missing or wrong ?key=' });
-      if (p === '/api/config' && req.method === 'GET') return json(res, 200, { layout, control, view: dash.scheduledView(layout), serverNow: Date.now(), venues: collect.get().venues, customers: (collect.get().customers || []).map((c) => ({ id: c.id, name: c.name })), canAdmin: canAdmin(req, url), version: upgrade.version(), auth: { enabled: auth.enabled(), user: (auth.session(req) || {}).user || '' } });
+      if (p === '/api/config' && req.method === 'GET') return json(res, 200, { layout, control, view: dash.scheduledView(layout), serverNow: Date.now(), venues: Object.entries(collect.all()).flatMap(([src, x]) => (x.venues || []).map((v) => ({ ...v, src }))), enabledSources: sources.enabled(), primary: sources.primary(), customers: (collect.get().customers || []).map((c) => ({ id: c.id, name: c.name })), canAdmin: canAdmin(req, url), version: upgrade.version(), auth: { enabled: auth.enabled(), user: (auth.session(req) || {}).user || '' } });
       if (p === '/api/config' && req.method === 'PUT') {
         if (!canAdmin(req, url)) return json(res, 403, { error: 'Admin access requires signing in (or localhost / ?key=<NOC_ADMIN_KEY>)', login: auth.enabled() });
         try { layout = dash.save(await readBody(req)); refreshNeeds(); reanchorControl(); } catch (e) { return json(res, 400, { error: e.message }); }
@@ -165,18 +179,19 @@ const handle = async (req, res) => {
         if (!canAdmin(req, url)) return json(res, 403, { error: 'Admin access requires signing in (or localhost / ?key=<NOC_ADMIN_KEY>)', login: auth.enabled() });
         if (p === '/api/settings' && req.method === 'GET') return json(res, 200, settings.get());
         if (p === '/api/settings' && req.method === 'PUT') {
-          const before = cfg.source;
+          const before = { on: sources.enabled(), primary: sources.primary() };
           try { settings.save(await readBody(req)); } catch (e) { return json(res, 400, { error: e.message }); }
           rai.reset(); collect.resetCaches();
-          if (cfg.source !== before && dash.isStock(layout, before)) {   // untouched stock screens follow the data source; a layout someone edited is left alone
-            layout = dash.save(dash.defaultFor(cfg.source)); refreshNeeds(); broadcast('config', { layout, control, serverNow: Date.now() });
+          const after = { on: sources.enabled(), primary: sources.primary() };
+          if (JSON.stringify(after) !== JSON.stringify(before) && dash.isStock(layout, before.on, before.primary)) {   // untouched stock screens follow the enabled sources; an edited layout is left alone
+            layout = dash.save(dash.stockFor(after.on, after.primary)); refreshNeeds(); broadcast('config', { layout, control, serverNow: Date.now() });
           }
           schedule(); cycle();
           return json(res, 200, settings.get());
         }
         if (p === '/api/settings/test' && req.method === 'POST') {
           if (cfg.demo) return json(res, 200, { ok: false, error: 'Server is running in demo mode (NOC_DEMO=1) — restart without it to use live data.' });
-          if (cfg.source === 'smartzone') {   // test one controller (?controller=id) or every enabled one
+          if ((url.searchParams.get('source') || sources.primary()) === 'smartzone') {   // test one controller (?controller=id) or every enabled one
             const only = url.searchParams.get('controller'); const list = (cfg.sz.controllers || []).filter((c) => c.host && c.username && c.password && (only ? c.id === only : c.enabled !== false));
             if (!list.length) return json(res, 200, { ok: false, error: 'No SmartZone controller with an address, user name and password — save one first' });
             const out = await Promise.all(list.map(async (c) => { try { return { id: c.id, ok: true, ...(await collect.szClientFor(c).test()) }; } catch (e) { return { id: c.id, ok: false, error: e.message }; } }));
@@ -290,16 +305,16 @@ const handle = async (req, res) => {
       }
       if (p === '/api/diagnostics') {
         if (!canAdmin(req, url)) return json(res, 403, { error: 'Admin access required' });
-        const S = collect.get();
-        return json(res, 200, { source: S.source, at: S.at, errors: S.errors, diag: S.diag || null });
+        const S = collect.get(); const per = Object.fromEntries(Object.entries(collect.all()).map(([src, x]) => [src, { at: x.at, errors: x.errors, diag: x.diag || null }]));
+        return json(res, 200, { source: S.source, at: S.at, errors: S.errors, diag: S.diag || null, sources: per });
       }
       if (p === '/api/config/reset' && req.method === 'POST') {
         if (!canAdmin(req, url)) return json(res, 403, { error: 'Admin access requires signing in (or localhost / ?key=<NOC_ADMIN_KEY>)', login: auth.enabled() });
-        layout = dash.save(dash.defaultFor(cfg.source)); refreshNeeds();
+        layout = dash.save(dash.stockFor(sources.enabled(), sources.primary())); refreshNeeds();
         broadcast('config', { layout, control, serverNow: Date.now() }); broadcastData(); cycle();
         return json(res, 200, { layout });
       }
-      if (p === '/api/catalog') return json(res, 200, { widgets: widgets.catalog(), presets: dash.presets() });
+      if (p === '/api/catalog') return json(res, 200, { widgets: widgets.catalog(), presets: dash.presets(), presetsBySource: dash.presetsBySource(), source: sources.primary(), enabledSources: sources.enabled(), plainDemo: cfg.demo && !cfg.demoAi && !cfg.demoSz });
       if (p === '/api/data') return json(res, 200, buildData(venueParam(url)));
       if (p === '/api/stream') {
         res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
@@ -352,7 +367,11 @@ function applyTls() {
 
 // ---- polling loop ----
 // Rules run after every poll and every 20 s (so "data is stale" and debounce timers advance even if polling hangs).
-function evaluateRules() { const ev = rules.evaluate(collect.get()); if (ev.length) { notify.dispatch(ev); broadcastData(); } }
+function evaluateRules() {
+  const on = sources.enabled(); const ev = [];
+  for (const src of on) { const S = collect.get(src); if (!S || !S.at) continue; ev.push(...(on.length > 1 ? rules.evaluate(S, Date.now(), `${src}:`, SRC_LABEL[src]) : rules.evaluate(S))); }
+  if (ev.length) { notify.dispatch(ev); broadcastData(); }
+}
 feeds.start(() => broadcastData());
 function cycle() { collect.poll(() => { evaluateRules(); broadcastData(); }); }
 setInterval(evaluateRules, 20000);
