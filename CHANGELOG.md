@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 (in development)
+## 0.1.0 — 2026-10-16 (first release)
 - Started from R1 NOC Wall 0.3.9 (same dashboard engine, editor, alerts, HTTPS, backup, in-place upgrade and packaging), renamed to **SZ-AI NOC Wall**.
 - Goal: a NOC wall for **RUCKUS AI** (ruckus.cloud/ai) first, then **RUCKUS SmartZone** controllers.
 - Live data now comes from RUCKUS AI: SmartZone controllers (with onboarding state), zones and switch groups, every AP and switch, open incidents as alarms and Intent AI recommendations. Sign in with an Application Token (Administration → Developers → Application Tokens); RUCKUS One API keys do not work.
