@@ -13,7 +13,7 @@
 //   Saved:     node scripts/widget-check.js --snapshot snap.json      (made with --save snap.json; it holds your real names: keep it local)
 //   Demo:      node scripts/widget-check.js --demo                    (offline regression: the demo data with everything RUCKUS AI does not supply blanked out)
 //              --demo --raw                                            (demo data as is, R1-shaped)
-//   SmartZone: SZ_HOST=... SZ_KEY=... [SZ_PORT=8443] node scripts/widget-check.js --source smartzone   (or --demo --source smartzone)
+//   SmartZone: SZ_HOST=... SZ_USER=... SZ_PASS=... [SZ_PORT=8443] node scripts/widget-check.js --source smartzone   (or --demo --source smartzone)
 //   Options:   --source rai|smartzone (default rai)   --write-unavailable (save the NO DATA widget types to lib/widget-availability.json: the editor hides them)   --json (machine-readable)   --all (also list the OK ones)   --group "Name" (only that group)
 // Exit code 1 when a widget is BROKEN, or when a default screen / offered preset holds a NO DATA widget. The history database goes to a scratch folder, never to ./data.
 const fs = require('node:fs');
@@ -171,8 +171,8 @@ async function getSnapshot() {
     return S;
   }
   if (SOURCE === 'smartzone') {
-    if (!env.SZ_HOST || !env.SZ_KEY) { console.error('Set SZ_HOST and SZ_KEY (and SZ_PORT if not 8443), or use --snapshot <file> or --demo.'); process.exit(2); }
-    require('../lib/config').sz.controllers = [{ id: 'sz1', name: 'sz1', host: env.SZ_HOST, port: Number(env.SZ_PORT) || 8443, apiKey: env.SZ_KEY, verifyTls: env.SZ_VERIFY === '1', enabled: true }];
+    if (!env.SZ_HOST || !env.SZ_USER || !env.SZ_PASS) { console.error('Set SZ_HOST, SZ_USER and SZ_PASS (and SZ_PORT if not 8443), or use --snapshot <file> or --demo.'); process.exit(2); }
+    require('../lib/config').sz.controllers = [{ id: 'sz1', name: 'sz1', host: env.SZ_HOST, port: Number(env.SZ_PORT) || 8443, username: env.SZ_USER, password: env.SZ_PASS, verifyTls: env.SZ_VERIFY === '1', enabled: true }];
     await collect.poll(); const Z = collect.get(); if (Z.setup) { console.error(Z.setup); process.exit(2); } return Z;
   }
   if (!env.RAI_CLIENT_ID || !env.RAI_CLIENT_SECRET) { console.error('Set RAI_CLIENT_ID and RAI_CLIENT_SECRET (an Application Token), or use --snapshot <file> or --demo.'); process.exit(2); }

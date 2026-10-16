@@ -99,7 +99,7 @@
       <label>Poll every (sec)<input id="s_poll" type="number" min="15" max="3600"></label>
     </div>
     <div id="srcSz" style="display:none">
-      <p style="color:var(--muted);margin:.6rem 0">Add each SmartZone controller by address and API key. The wall calls the controller's public API at <code>https://&lt;address&gt;:&lt;port&gt;/wsg/api/public</code> and only reads. Use a read-only administrator or API key. The key is stored on this server and never sent back to the browser. Widgets that need RUCKUS AI (Intent AI, connection-experience analytics) are hidden for this source.</p>
+      <p style="color:var(--muted);margin:.6rem 0">Add each SmartZone controller by address, with the user name and password of a <b>read-only administrator</b> (create one in SmartZone under Administration → Admin and Roles; the account must be allowed to use the REST API). The wall signs in to the controller's public API at <code>https://&lt;address&gt;:&lt;port&gt;/wsg/api/public</code> with a service ticket and only reads. The password is stored on this server and never sent back to the browser. Widgets that need RUCKUS AI (Intent AI, connection-experience analytics) are hidden for this source.</p>
       <div id="szList"></div>
       <div style="display:flex;gap:.6rem;align-items:center;margin-top:.8rem">
         <button id="sz_add">+ Add controller</button>

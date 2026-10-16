@@ -240,7 +240,8 @@ function szDraw() {
       <label>Name<input data-k="name" value="${esc(c.name || '')}" size="16" placeholder="Campus SZ"></label>
       <label>Address<input data-k="host" value="${esc(c.host || '')}" size="22" placeholder="sz.example.com or 10.0.0.5" spellcheck="false"></label>
       <label>Port<input data-k="port" type="number" value="${esc(c.port || 8443)}" style="width:5.5rem"></label>
-      <label>API key<input data-k="apiKey" type="password" value="" size="24" autocomplete="new-password" placeholder="${c.keySet ? '•••••• (saved, leave blank to keep)' : '(not set)'}"></label>
+      <label>User name<input data-k="username" value="${esc(c.username || '')}" size="14" autocomplete="off" spellcheck="false"></label>
+      <label>Password<input data-k="password" type="password" value="" size="18" autocomplete="new-password" placeholder="${c.passwordSet ? '•••••• (saved)' : '(not set)'}"></label>
       <label class="inline" title="Leave off for a controller with a self-signed certificate"><input data-k="verifyTls" type="checkbox" ${c.verifyTls ? 'checked' : ''}> Verify certificate</label>
       <label class="inline"><input data-k="enabled" type="checkbox" ${c.enabled !== false ? 'checked' : ''}> Enabled</label>
       <button data-act="szTest">Test</button><button data-act="szDel" class="danger">Remove</button><span data-out style="color:var(--muted)"></span>
@@ -252,13 +253,13 @@ function szRead() {   // current field values back into szRows (keys left blank 
     for (const f of row.querySelectorAll('[data-k]')) { const k = f.dataset.k; c[k] = f.type === 'checkbox' ? f.checked : f.type === 'number' ? Number(f.value) || 8443 : f.value; }
   });
 }
-const szBody = () => szRows.map((c) => ({ id: c.id, name: c.name, host: c.host, port: c.port, apiKey: c.apiKey || '', verifyTls: Boolean(c.verifyTls), enabled: c.enabled !== false, authStyle: c.authStyle || '' }));
+const szBody = () => szRows.map((c) => ({ id: c.id, name: c.name, host: c.host, port: c.port, username: c.username || '', password: c.password || '', verifyTls: Boolean(c.verifyTls), enabled: c.enabled !== false }));
 function showSource(src) { $('#srcSz').style.display = src === 'smartzone' ? '' : 'none'; $('#srcRai').style.display = src === 'smartzone' ? 'none' : ''; }
 function fillSettings(s) {
   $('#s_source').value = s.source || 'rai'; showSource(s.source || 'rai');
-  szRows = (s.smartzone || []).map((c) => ({ ...c, apiKey: '' })); szDraw();
+  szRows = (s.smartzone || []).map((c) => ({ ...c, password: '' })); szDraw();
   _fillRai(s);
-  if (s.source === 'smartzone') { const n = szRows.filter((c) => c.enabled !== false && c.host && c.keySet).length; $('#connState').textContent = s.demo ? 'DEMO mode — synthetic data' : n ? `SmartZone: ${n} controller${n === 1 ? '' : 's'}` : 'SmartZone: not set up yet'; if (!s.demo && !n) $('#conn').open = true; }
+  if (s.source === 'smartzone') { const n = szRows.filter((c) => c.enabled !== false && c.host && c.username && c.passwordSet).length; $('#connState').textContent = s.demo ? 'DEMO mode — synthetic data' : n ? `SmartZone: ${n} controller${n === 1 ? '' : 's'}` : 'SmartZone: not set up yet'; if (!s.demo && !n) $('#conn').open = true; }
 }
 function _fillRai(s) {
   $('#s_tenant').value = s.tenantId; $('#s_client').value = s.clientId; $('#s_secret').value = '';
