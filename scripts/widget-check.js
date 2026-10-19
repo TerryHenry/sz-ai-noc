@@ -40,12 +40,12 @@ const history = require('../lib/history');
 // Snapshot fields each source's collector fills in (lib/collect.js pollRai / pollSz). A widget that reads any other EMPTY field has no data.
 // This is about what the collector supplies, not what a particular tenant or lab happens to hold: a controller with no clients still supplies clients.
 const COMMON = ['venues', 'aps', 'alarms', 'controllers', 'clientTotal', 'errors', 'at', 'source', 'diag', 'setup', 'starting', 'customers'];
-const SUPPLIED = new Set(SOURCE === 'smartzone' ? [...COMMON, 'clients', 'networks'] : [...COMMON, 'switches', 'intents', 'analytics']);
-const SUPPLIED_NEEDS = new Set(SOURCE === 'smartzone' ? ['networks'] : ['analytics']);
+const SUPPLIED = new Set(SOURCE === 'smartzone' ? [...COMMON, 'clients', 'networks', 'dpsk', 'dpskPools', 'vlanPools', 'wfcProfiles', 'radios'] : [...COMMON, 'switches', 'intents', 'analytics']);
+const SUPPLIED_NEEDS = new Set(SOURCE === 'smartzone' ? ['networks', 'dpsk', 'vlanPools', 'wfcProfiles'] : ['analytics']);
 const isEmpty = (v) => v == null || v === '' || (Array.isArray(v) && !v.length) || (typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length);
 
 // Wrap the snapshot so we can see which top-level fields a widget touches, and which fields of each aps/switches/venues/... row.
-const ROWS = new Set(['aps', 'switches', 'venues', 'alarms', 'controllers']);
+const ROWS = new Set(['aps', 'switches', 'venues', 'alarms', 'controllers', 'clients', 'radios']);
 function tracked(S) {
   const reads = new Set(), fields = new Set(); const cache = new Map();
   const rowProxy = (coll, row) => new Proxy(row, { get(t, k) { if (typeof k === 'string') fields.add(`${coll}.${k}`); return t[k]; } });
@@ -121,6 +121,9 @@ function placeholder(r) {
 }
 
 function classify(def, S, ctx) {
+  // Confirmed on a live SmartZone 7.2 (2026-10-19): client byte counters refresh in steps about once a minute, so throughput is measured like for RUCKUS One (between changes, last rate carried). A single idle poll shows "measuring…".
+  if (SOURCE === 'smartzone' && /^g\.kpi\.throughput\.(now|down|up|perClient|peak)$/.test(def.type)) return { status: 'OK', why: 'client throughput from the byte counters (needs two changes to show)' };
+  if (SOURCE === 'smartzone' && /wfc/i.test(def.type) && def.type !== 'table.wfc_profiles' && !def.msp) return { status: 'NO DATA', why: 'SmartZone clients do not report Wi-Fi calling (only the policies are read)' };
   if (def.msp || /\.customer(\.|$)/.test(def.type)) return { status: 'N/A', why: 'MSP customer widget (this app has one RUCKUS AI account)' };
   if (def.group === 'Ticker & feeds') return { status: 'N/A', why: 'external feed, not RUCKUS AI data' };
   const unsupplied = (def.needs || []).filter((n) => !SUPPLIED_NEEDS.has(n));
@@ -176,7 +179,8 @@ async function getSnapshot() {
   if (SOURCE === 'smartzone') {
     if (!env.SZ_HOST || !env.SZ_USER || !env.SZ_PASS) { console.error('Set SZ_HOST, SZ_USER and SZ_PASS (and SZ_PORT if not 8443), or use --snapshot <file> or --demo.'); process.exit(2); }
     require('../lib/config').sz.controllers = [{ id: 'sz1', name: 'sz1', host: env.SZ_HOST, port: Number(env.SZ_PORT) || 8443, username: env.SZ_USER, password: env.SZ_PASS, verifyTls: env.SZ_VERIFY === '1', enabled: true }];
-    await collect.poll(); const Z = collect.get(); if (Z.setup) { console.error(Z.setup); process.exit(2); } return Z;
+    await collect.poll(); await new Promise((r) => setTimeout(r, 15000)); await collect.poll();   // two polls: client throughput is a rate between two fetches of the byte counters
+    const Z = collect.get(); if (Z.setup) { console.error(Z.setup); process.exit(2); } return Z;
   }
   if (!env.RAI_CLIENT_ID || !env.RAI_CLIENT_SECRET) { console.error('Set RAI_CLIENT_ID and RAI_CLIENT_SECRET (an Application Token), or use --snapshot <file> or --demo.'); process.exit(2); }
   collect.setNeeds(['analytics']);   // analytics is a slow source that is only fetched when something needs it
@@ -192,7 +196,9 @@ async function getSnapshot() {
   if (S.at && !flag('snapshot')) { try { history.record(S.at, collect.metricsOf(S, true)); } catch { /* trends then show as EMPTY */ } }   // one point so trend widgets have something
   const only = opt('group');
   const cov = coverage(S);
-  const ctx = { neverFilled: SOURCE === 'smartzone' ? new Set(['aps.uplink']) : new Set(Object.entries(cov).flatMap(([k, c]) => Object.entries(c.filled).filter(([, n]) => n === 0).map(([f]) => `${k}.${f}`))), metricKeys: new Set(Object.keys(collect.metricsOf(S, true))) };
+  // SmartZone radios report noise and airtime while their APs are online (the lab's are all offline), so those metrics count as supplied for it
+  // RUCKUS AI does not report controller load (cpu / memory / disk), so widgets built on it have no data there
+  const ctx = { neverFilled: SOURCE === 'smartzone' ? new Set(['aps.uplink', 'clients.health', 'clients.identityGroup', 'clients.noiseFloor', 'clients.wfc', 'clients.wfcCarrier', 'radios.rssi']) : new Set([...Object.entries(cov).flatMap(([k, c]) => Object.entries(c.filled).filter(([, n]) => n === 0).map(([f]) => `${k}.${f}`)), 'controllers.cpu', 'controllers.memory', 'controllers.disk']), metricKeys: new Set([...Object.keys(collect.metricsOf(S, true)), ...(SOURCE === 'smartzone' ? ['avg_noise@*', 'avg_airtime@*', 'max_airtime@*'] : [])]) };
   const results = widgets.catalog().filter((d) => !only || d.group === only).map((d) => ({ type: d.type, title: d.title, group: d.group, ...classify(d, S, ctx) }));
   const count = (s) => results.filter((r) => r.status === s).length;
   const summary = { widgets: results.length, ok: count('OK'), empty: count('EMPTY'), noData: count('NO DATA'), warmup: count('WARMUP'), partly: count('PARTLY'), na: count('N/A'), broken: count('BROKEN'), snapshot: { aps: (S.aps || []).length, switches: (S.switches || []).length, zones: (S.venues || []).length, controllers: (S.controllers || []).length, alarms: (S.alarms || []).length, intents: S.intents ? S.intents.total : null, analytics: Boolean(S.analytics), errors: S.errors || {} } };

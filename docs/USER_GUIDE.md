@@ -163,7 +163,7 @@ connections** each source is its own section with its own on/off switch:
 | Reads | controllers onboarded to RUCKUS AI, through one Application Token | each controller's own public API (`https://<address>:8443/wsg/api/public`), signed in with a read-only administrator (service ticket) |
 | On / off | one checkbox (the token stays saved when it is off) | one checkbox per controller, plus the list (name, address, port, user name, password) |
 | Only here | Intent AI, connection-experience analytics | |
-| Status | working, confirmed on a live tenant | **working, early**: confirmed against a live SmartZone 7.2 (API v14_0) for zones, APs (live status, model, firmware, IP, client counts, channels), WLANs and the controller. Client and alarm lists are read but their fields are unconfirmed (that controller had none), and no switch data is read (the controller has no switch API) |
+| Status | working, confirmed on a live tenant | **working, early**: confirmed against a live SmartZone 7.2 (API v14_0) for zones, APs (live status, model, firmware, IP, client counts, radio channels and widths), WLANs, DPSK users, VLAN pools, Wi-Fi calling policies, controller CPU / memory / disk and alarm counts. Also confirmed with a live AP and client: clients (SSID, band, channel, signal, SNR, traffic; counters refresh about once a minute, so throughput needs two changes), alarms, and AP noise / airtime. Switches, switch ports and guest passes are not read yet: the controller offers them (Switch Manager API, `/identity/guestpassList`) but the test controller had none to confirm against |
 
 **One source per screen.** Every screen shows exactly one source, chosen in the screen's **Data** box (it appears once both sources are on).
 A screen never mixes the two: its tiles, tables, charts, trends and the venue list all come from that source. Screens that do not choose
@@ -174,7 +174,7 @@ drill-down. Alerts (see *Alerts*) are evaluated for each source on its own and n
 (next to **+ Preset screen…**) chooses what to offer: **For this screen** (the default: only what works with the screen's own source),
 **For RUCKUS AI**, **For SmartZone**, or **Everything**. Buttons in the widget picker carry a *RUCKUS AI only* / *SmartZone only* tag when a widget
 works for just one source, and the stock screens are presets of their own: *RUCKUS AI Overview / Zones / Switches / Intent AI* and
-*SmartZone Overview / Zones / Wi-Fi networks / Clients*. Widgets already on a screen always stay visible. Widgets that need switches, switch ports,
+*SmartZone Overview / Zones / Wi-Fi networks / Clients / Access / AP radios* (Access: DPSK, VLAN pools, Wi-Fi calling policies; AP radios: band, channel width, channel, airtime, noise and controller load). Widgets already on a screen always stay visible. Widgets that need switches, switch ports,
 DPSK, guests, Wi-Fi calling profiles, Intent AI or the RUCKUS AI analytics are hidden for SmartZone (`npm run widgets:check -- --source smartzone`).
 
 **Stock screens follow what is on.** Turning a source on or off swaps an untouched stock layout for the stock layout of what is now on (with both

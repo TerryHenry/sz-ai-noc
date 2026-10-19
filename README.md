@@ -10,14 +10,14 @@ and the editor only offers the widgets and screens that work with it.
 <p align="center"><sub>The same wall on RUCKUS AI (left) and on SmartZone (right). Screenshots use synthetic demo data.</sub></p>
 
 > **Status: 0.1, early.** RUCKUS AI is confirmed against a live tenant. SmartZone is confirmed against a live SmartZone 7.2 (API v14_0) for zones, APs, WLANs and
-> the controller; its client and alarm lists are read but unconfirmed (the test controller had none) and there is no switch data. The Windows builds are untested on a real Windows machine.
+> the controller; clients, alarms, DPSK, VLAN pools, Wi-Fi calling policies and controller load are confirmed too; there is no switch or guest-pass data yet (the test controller had none). The Windows builds are untested on a real Windows machine.
 
 ## Features
 
 **Two data sources, side by side**
 - **RUCKUS AI**: controllers and their onboarding state, zones and switch groups, every AP and switch (status, model, firmware, IP, wired clients), open incidents as alarms,
   Intent AI recommendations, and connection experience (network-wide and per zone). One Application Token.
-- **SmartZone, direct** (for sites without RUCKUS AI): zones, APs with live status / model / firmware / IP / client counts / channels, WLANs, and controller info, from one or many
+- **SmartZone, direct** (for sites without RUCKUS AI): zones, APs with live status / model / firmware / IP / client counts / channel widths, WLANs, DPSK users, VLAN pools, Wi-Fi calling policies, controller CPU / memory / disk, and alarm counts, from one or many
   controllers. Signs in with a read-only administrator (service ticket); passwords are write-only.
 - **On / off per source and per controller.** Both can be on together; **each screen shows exactly one source**, never a mix. Stock screens, history and alerts follow the source.
 - **Only what works is offered.** Every widget and screen knows which sources it can show; the picker hides the rest (with *RUCKUS AI only* / *SmartZone only* tags and a
