@@ -40,8 +40,8 @@ const history = require('../lib/history');
 // Snapshot fields each source's collector fills in (lib/collect.js pollRai / pollSz). A widget that reads any other EMPTY field has no data.
 // This is about what the collector supplies, not what a particular tenant or lab happens to hold: a controller with no clients still supplies clients.
 const COMMON = ['venues', 'aps', 'alarms', 'controllers', 'clientTotal', 'errors', 'at', 'source', 'diag', 'setup', 'starting', 'customers'];
-const SUPPLIED = new Set(SOURCE === 'smartzone' ? [...COMMON, 'clients', 'networks', 'dpsk', 'dpskPools', 'vlanPools', 'wfcProfiles', 'radios'] : [...COMMON, 'switches', 'intents', 'analytics']);
-const SUPPLIED_NEEDS = new Set(SOURCE === 'smartzone' ? ['networks', 'dpsk', 'vlanPools', 'wfcProfiles'] : ['analytics']);
+const SUPPLIED = new Set(SOURCE === 'smartzone' ? [...COMMON, 'clients', 'networks', 'dpsk', 'dpskPools', 'vlanPools', 'wfcProfiles', 'radios', 'switches', 'ports', 'switchEvents', 'portEvents'] : [...COMMON, 'switches', 'intents', 'analytics']);
+const SUPPLIED_NEEDS = new Set(SOURCE === 'smartzone' ? ['networks', 'dpsk', 'vlanPools', 'wfcProfiles', 'ports', 'switchEvents'] : ['analytics']);
 const isEmpty = (v) => v == null || v === '' || (Array.isArray(v) && !v.length) || (typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length);
 
 // Wrap the snapshot so we can see which top-level fields a widget touches, and which fields of each aps/switches/venues/... row.
@@ -105,7 +105,7 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const zeroish = (v) => v == null || v === '' || v === '—' || (typeof v === 'number' && !(v > 0)) || (typeof v === 'string' && /^[-+]?0+(\.0+)?\s*[%A-Za-z]{0,3}$/.test(v.trim()));
 const EMPTY_BUCKET = /^(unknown|none|n\/a|—|-|0 clients|)$/i;   // the one bucket everything falls into when the grouping field is never filled
 // Known to show a real-looking 0 that the perturbation cannot expose (radio clients are not modelled by the demo).
-const MANUAL_NO_DATA = new Set(['g.kpi.load.over20']);
+const MANUAL_NO_DATA = new Set();
 function placeholder(r) {
   if (!r) return true;
   switch (r.kind) {
@@ -198,7 +198,7 @@ async function getSnapshot() {
   const cov = coverage(S);
   // SmartZone radios report noise and airtime while their APs are online (the lab's are all offline), so those metrics count as supplied for it
   // RUCKUS AI does not report controller load (cpu / memory / disk), so widgets built on it have no data there
-  const ctx = { neverFilled: SOURCE === 'smartzone' ? new Set(['aps.uplink', 'clients.health', 'clients.identityGroup', 'clients.noiseFloor', 'clients.wfc', 'clients.wfcCarrier', 'radios.rssi']) : new Set([...Object.entries(cov).flatMap(([k, c]) => Object.entries(c.filled).filter(([, n]) => n === 0).map(([f]) => `${k}.${f}`)), 'controllers.cpu', 'controllers.memory', 'controllers.disk']), metricKeys: new Set([...Object.keys(collect.metricsOf(S, true)), ...(SOURCE === 'smartzone' ? ['avg_noise@*', 'avg_airtime@*', 'max_airtime@*'] : [])]) };
+  const ctx = { neverFilled: SOURCE === 'smartzone' ? new Set(['aps.uplink', 'clients.health', 'clients.identityGroup', 'clients.noiseFloor', 'clients.wfc', 'clients.wfcCarrier', 'radios.rssi', 'ports.profile']) : new Set([...Object.entries(cov).flatMap(([k, c]) => Object.entries(c.filled).filter(([, n]) => n === 0).map(([f]) => `${k}.${f}`)), 'controllers.cpu', 'controllers.memory', 'controllers.disk']), metricKeys: new Set([...Object.keys(collect.metricsOf(S, true)), ...(SOURCE === 'smartzone' ? ['avg_noise@*', 'avg_airtime@*', 'max_airtime@*', 'sw_thr_mbps@*', 'avg_rssi@*', 'avg_snr@*', 'avg_rssi_24@*', 'avg_rssi_5@*', 'avg_snr_24@*', 'avg_snr_5@*', 'poor_signal@*'] : [])]) };
   const results = widgets.catalog().filter((d) => !only || d.group === only).map((d) => ({ type: d.type, title: d.title, group: d.group, ...classify(d, S, ctx) }));
   const count = (s) => results.filter((r) => r.status === s).length;
   const summary = { widgets: results.length, ok: count('OK'), empty: count('EMPTY'), noData: count('NO DATA'), warmup: count('WARMUP'), partly: count('PARTLY'), na: count('N/A'), broken: count('BROKEN'), snapshot: { aps: (S.aps || []).length, switches: (S.switches || []).length, zones: (S.venues || []).length, controllers: (S.controllers || []).length, alarms: (S.alarms || []).length, intents: S.intents ? S.intents.total : null, analytics: Boolean(S.analytics), errors: S.errors || {} } };
