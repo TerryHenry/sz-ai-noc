@@ -90,6 +90,13 @@ Then follow the [Getting started guide](docs/GETTING_STARTED.md): about 15 minut
 - **RUCKUS AI:** create an **Application Token** (Administration → Developers → Application Tokens). RUCKUS One API keys do not work.
 - **SmartZone:** add each controller's address with a **read-only administrator**'s user name and password. There is no API key.
 
+## Tests
+
+```bash
+npm test    # 30 tests, ~5 s: backups and secrets, the SmartZone client, source and preset rules, and the whole server against
+            # a synthetic RUCKUS AI and SmartZone (test/mocks), no credentials or network needed (uses the openssl CLI for a throw-away certificate)
+```
+
 ## Roadmap
 
 1. **RUCKUS AI**: more of the analytics (health KPIs per system) where RUCKUS AI returns them for SmartZone.
