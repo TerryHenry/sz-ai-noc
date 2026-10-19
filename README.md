@@ -2,30 +2,100 @@
 
 # SZ-AI NOC Wall
 
-A **server-side NOC wall display for RUCKUS AI** (ruckus.cloud/ai) and, next, **RUCKUS SmartZone** controllers. One small
-server collects the data; any browser on your network — wall TVs, kiosks, laptops — shows live, customizable dashboards.
+A **server-side NOC wall display for RUCKUS AI and RUCKUS SmartZone.** One small server collects the data; any browser on your network (wall TVs, kiosks,
+laptops) shows live, customizable dashboards. Connect **RUCKUS AI**, **SmartZone controllers directly**, or **both at once**: each screen shows one source,
+and the editor only offers the widgets and screens that work with it.
 
-> **Status: early development (0.1).** Live data from **RUCKUS AI** works: SmartZone controllers and their onboarding state, zones, every AP and
-> switch, open incidents as alarms and Intent AI recommendations. Connect with a RUCKUS AI **Application Token**
-> (Administration → Developers). RUCKUS AI has no per-client, switch-port, DPSK or guest data, so widgets built on those are hidden; run
-> `npm run widgets:check` to see what works on your tenant. Built from [R1 NOC Wall](https://github.com/TerryHenry/r1-noc)'s dashboard engine,
-> editor, alerts, HTTPS, backup, upgrade and packaging. Docs: [Getting started](docs/GETTING_STARTED.md) · [User guide](docs/USER_GUIDE.md).
-> The screenshots in the docs were taken on the RUCKUS One version and will be retaken.
+<p align="center"><img src="docs/img/overview.png" alt="RUCKUS AI overview screen (demo data)" width="49%"> <img src="docs/img/sz-overview.png" alt="SmartZone overview screen (demo data)" width="49%"></p>
+<p align="center"><sub>The same wall on RUCKUS AI (left) and on SmartZone (right). Screenshots use synthetic demo data.</sub></p>
 
-<p align="center"><img src="docs/img/overview.png" alt="SZ-AI NOC Wall overview screen (demo data)" width="800"></p>
+> **Status: 0.1, early.** RUCKUS AI is confirmed against a live tenant. SmartZone is confirmed against a live SmartZone 7.2 (API v14_0) for zones, APs, WLANs and
+> the controller; its client and alarm lists are read but unconfirmed (the test controller had none) and there is no switch data. The Windows builds are untested on a real Windows machine.
+
+## Features
+
+**Two data sources, side by side**
+- **RUCKUS AI**: controllers and their onboarding state, zones and switch groups, every AP and switch (status, model, firmware, IP, wired clients), open incidents as alarms,
+  Intent AI recommendations, and connection experience (network-wide and per zone). One Application Token.
+- **SmartZone, direct** (for sites without RUCKUS AI): zones, APs with live status / model / firmware / IP / client counts / channels, WLANs, and controller info, from one or many
+  controllers. Signs in with a read-only administrator (service ticket); passwords are write-only.
+- **On / off per source and per controller.** Both can be on together; **each screen shows exactly one source**, never a mix. Stock screens, history and alerts follow the source.
+- **Only what works is offered.** Every widget and screen knows which sources it can show; the picker hides the rest (with *RUCKUS AI only* / *SmartZone only* tags and a
+  "For this screen / RUCKUS AI / SmartZone / Everything" switch), and presets are all-or-nothing: shown for a source only when every widget in them works there.
+  `npm run widgets:check` measures this against your own tenant or controller.
+
+**Dashboards you design**
+- A browser-based **editor** with a searchable catalog of widgets (KPIs, donuts, bars, tables, lists, trends, gauges, history comparisons), a drag-and-drop **layout designer** with
+  chart previews, auto-fit tiling, multi-display video walls with per-display playlists, views and time-of-day schedules, per-tile thresholds, and zone drill-down.
+- A scrolling **ticker** (custom messages, RSS news, weather, stock quotes) and a message board.
+- Light and dark themes, a scale option for far-away TVs, kiosk-friendly URLs.
+
+**Alerts and reports**
+- **Rules** on alarms, offline APs, clients, connection success, incidents and more, with severity, hold times, reminders and acknowledgement; critical rules **take over every screen** until acknowledged.
+- Notifications to **Slack, Microsoft Teams, email (SMTP) and webhooks**.
+- Scheduled, printable **reports** (saved as HTML, emailed, print to PDF), and 30 days of metric history for trends and "vs yesterday / last week".
+
+**Run it anywhere, safely**
+- **Virtual appliance (OVA)**, **macOS app**, **Windows installer / zip**, or **from source** (Node 22.5+, nothing to install).
+- HTTPS with a generated or your own certificate, an editor sign-in, view keys, encrypted full backups, and **in-app software updates** from a release file.
+- No credentials in the browser: the server is the only thing that talks to RUCKUS AI or your controllers, and it only ever reads.
+
+## Screens
+
+### RUCKUS AI
+
+<p><img src="docs/img/zones.png" alt="Zones and AP breakdowns" width="49%"> <img src="docs/img/switches.png" alt="Switches" width="49%"></p>
+<p><img src="docs/img/intent-ai.png" alt="Intent AI recommendations" width="49%"> <img src="docs/img/connection-health.png" alt="Connection health" width="49%"></p>
+
+Controllers, zones, every AP and switch, incidents, Intent AI, and connection success by stage (network-wide and per zone).
+
+### SmartZone
+
+<p><img src="docs/img/sz-zones.png" alt="SmartZone zones" width="49%"> <img src="docs/img/sz-networks.png" alt="SmartZone Wi-Fi networks" width="49%"></p>
+<p><img src="docs/img/sz-clients.png" alt="SmartZone clients" width="49%"> <img src="docs/img/takeover.png" alt="Alert takeover" width="49%"></p>
+
+Zones with AP and client counts, WLANs by SSID / security / VLAN, clients, and the alert takeover that covers every screen.
+
+### The editor
+
+<p><img src="docs/img/connections.png" alt="Data sources and connections" width="49%"> <img src="docs/img/picker.png" alt="Widget picker with source tags" width="49%"></p>
+<p><img src="docs/img/designer-charts.png" alt="Layout designer" width="49%"> <img src="docs/img/history.png" alt="History comparisons" width="49%"></p>
+
+Connect each source with its own on / off, pick widgets (tagged by source), arrange them in the layout designer, and compare now against yesterday or last week.
+
+## Get it
+
+Download from the [Releases page](../../releases):
+
+| | |
+|---|---|
+| `SZ-AI-NOC-Wall-x.y.z.ova` | virtual appliance (VMware, VirtualBox, Proxmox): import, power on, sign in at `https://<ip>/admin` |
+| `SZ-AI-NOC-Wall-x.y.z-mac.dmg` | macOS menu-bar app (Apple silicon and Intel; right-click, Open the first time) |
+| `SZ-AI-NOC-Wall-x.y.z-win-x64-setup.exe` / `.zip` | Windows installer / portable (unsigned, untested on real Windows) |
+| `sz-ai-noc-x.y.z.tgz` | the release file used by the in-app *Software update* |
+
+From source:
+
+```bash
+git clone https://github.com/TerryHenry/sz-ai-noc.git && cd sz-ai-noc
+npm run demo:ai    # RUCKUS AI demo, no credentials  → http://<server-ip>:8080
+npm run demo:sz    # SmartZone demo
+npm start          # real data: open http://<server-ip>:8080/admin and connect a source
+```
+
+Then follow the [Getting started guide](docs/GETTING_STARTED.md): about 15 minutes from download to a live wall. The [User guide](docs/USER_GUIDE.md) covers every setting.
+
+## Connecting
+
+- **RUCKUS AI:** create an **Application Token** (Administration → Developers → Application Tokens). RUCKUS One API keys do not work.
+- **SmartZone:** add each controller's address with a **read-only administrator**'s user name and password. There is no API key.
 
 ## Roadmap
 
-1. **RUCKUS AI** — *in progress.* Done: controllers, zones, APs, switches, incidents, Intent AI. Next: more of the analytics (health KPIs per system), if RUCKUS AI returns them for SmartZone.
-2. **SmartZone** — live controller data (zones, APs, clients, WLANs, alarms, switches) from the SmartZone public API, one or many controllers.
-3. Branding, docs, appliance / Mac / Windows releases.
+1. **RUCKUS AI**: more of the analytics (health KPIs per system) where RUCKUS AI returns them for SmartZone.
+2. **SmartZone**: confirm client and alarm fields on a controller that has them; switches if the controller exposes them; events.
+3. Notarized macOS and signed Windows builds.
 
-## Running it (development)
+Built from [R1 NOC Wall](https://github.com/TerryHenry/r1-noc)'s dashboard engine, editor, alerts, HTTPS, backup, upgrade and packaging.
 
-```bash
-npm run demo     # synthetic data, no credentials → http://<server-ip>:8080
-npm run demo:ai   # demo limited to what RUCKUS AI supplies (the screenshots)
-npm start        # real data
-```
-
-*Released under the [MIT License](LICENSE). Unofficial tool — not an official RUCKUS / CommScope product.*
+*Released under the [MIT License](LICENSE). Unofficial tool, not an official RUCKUS / CommScope product.*
