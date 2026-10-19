@@ -10,7 +10,7 @@ and the editor only offers the widgets and screens that work with it.
 <p align="center"><sub>The same wall on RUCKUS AI (left) and on SmartZone (right). Screenshots use synthetic demo data.</sub></p>
 
 > **Status: 0.1, early.** RUCKUS AI is confirmed against a live tenant. SmartZone is confirmed against a live SmartZone 7.2 (API v14_0) for zones, APs, WLANs and
-> the controller; clients, alarms, DPSK, VLAN pools, Wi-Fi calling policies, controller load, switches and switch ports are confirmed too; there is no guest-pass data yet (the test controller had none). The Windows builds are untested on a real Windows machine.
+> the controller; clients, alarms, DPSK, VLAN pools, Wi-Fi calling policies, controller load, switches and switch ports are confirmed too; guest passes and the switch event log are confirmed as well. The Windows builds are untested on a real Windows machine.
 
 ## Features
 

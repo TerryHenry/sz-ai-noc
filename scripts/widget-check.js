@@ -40,8 +40,8 @@ const history = require('../lib/history');
 // Snapshot fields each source's collector fills in (lib/collect.js pollRai / pollSz). A widget that reads any other EMPTY field has no data.
 // This is about what the collector supplies, not what a particular tenant or lab happens to hold: a controller with no clients still supplies clients.
 const COMMON = ['venues', 'aps', 'alarms', 'controllers', 'clientTotal', 'errors', 'at', 'source', 'diag', 'setup', 'starting', 'customers'];
-const SUPPLIED = new Set(SOURCE === 'smartzone' ? [...COMMON, 'clients', 'networks', 'dpsk', 'dpskPools', 'vlanPools', 'wfcProfiles', 'radios', 'switches', 'ports', 'switchEvents', 'portEvents'] : [...COMMON, 'switches', 'intents', 'analytics']);
-const SUPPLIED_NEEDS = new Set(SOURCE === 'smartzone' ? ['networks', 'dpsk', 'vlanPools', 'wfcProfiles', 'ports', 'switchEvents'] : ['analytics']);
+const SUPPLIED = new Set(SOURCE === 'smartzone' ? [...COMMON, 'clients', 'networks', 'dpsk', 'dpskPools', 'vlanPools', 'wfcProfiles', 'radios', 'switches', 'ports', 'switchEvents', 'portEvents', 'guests'] : [...COMMON, 'switches', 'intents', 'analytics']);
+const SUPPLIED_NEEDS = new Set(SOURCE === 'smartzone' ? ['networks', 'dpsk', 'vlanPools', 'wfcProfiles', 'ports', 'switchEvents', 'guests'] : ['analytics']);
 const isEmpty = (v) => v == null || v === '' || (Array.isArray(v) && !v.length) || (typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length);
 
 // Wrap the snapshot so we can see which top-level fields a widget touches, and which fields of each aps/switches/venues/... row.
