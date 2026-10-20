@@ -393,7 +393,8 @@ server.on('error', (e) => { if (e.code === 'EADDRINUSE' && process.env.NOC_RESTA
 server.listen(cfg.port, () => {
   applyTls();
   const ips = Object.values(os.networkInterfaces()).flat().filter((i) => i && i.family === 'IPv4' && !i.internal).map((i) => i.address);
-  console.log(`SZ-AI NOC Wall ${upgrade.version()}  (${cfg.demo ? 'DEMO data' : 'live RUCKUS AI'}, poll ${cfg.pollSeconds}s)`);
+  console.log(`SZ-AI NOC Wall ${upgrade.version()}  (${cfg.demo ? 'DEMO data' : sources.enabled().length ? 'live ' + sources.enabled().map((x) => ({ rai: 'RUCKUS AI', smartzone: 'SmartZone' }[x])).join(' + ') : 'no data source set up yet'}, poll ${cfg.pollSeconds}s)`);
+  console.log(`  data:   ${cfg.DATA_DIR}  (settings, logins, history and layouts are kept here; start with NOC_DATA_DIR=<folder> to choose it)`);
   for (const h of ips.length ? ips.slice(0, 3) : ['localhost']) console.log(`  wall:   http://${h}:${cfg.port}/${cfg.viewKey ? '?key=<NOC_VIEW_KEY>' : ''}\n  editor: http://${h}:${cfg.port}/admin${cfg.adminKey ? '?key=<NOC_ADMIN_KEY>' : ''}`);
   console.log(cfg.adminKey || auth.enabled() ? '  (editor: sign in or use the key)' : '  (the editor works from this computer only until you set an editor login or key)');
 });

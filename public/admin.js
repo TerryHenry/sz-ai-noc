@@ -275,6 +275,7 @@ function showSource() { /* both sections are always shown: each source has its o
 function fillSettings(s) {
   $('#s_source').value = s.source || 'rai'; $('#s_ai_on').checked = s.aiEnabled !== false; $('#s_hide').checked = Boolean(s.hideUnavailable);
   if (s.enabledSources) enabledSrc = s.enabledSources;
+  { const n = $('#dataDirNote'); if (n) { n.textContent = s.dataDirTemporary ? `⚠ Settings are saved in ${s.dataDir}, a temporary folder: they will be lost when it is cleared or the app is started with a new one. Start the app with NOC_DATA_DIR set to a permanent folder.` : `Settings (including these logins) are saved in ${s.dataDir}`; n.style.color = s.dataDirTemporary ? 'var(--bad)' : 'var(--muted)'; } }
   szRows = (s.smartzone || []).map((c) => ({ ...c, password: '' })); szDraw();
   _fillRai(s);
   const aiOk = Boolean(s.clientId && s.secretSet);
