@@ -150,7 +150,8 @@ const openGroups = new Set();
 function pickBtn(c, u) {
   const e = u.get(c.type);
   const tag = e ? `<span class="tag used" title="Used on: ${esc(e.where.join(', '))}">in use ×${e.total}${e.here ? ` · ${e.here} here` : ''}</span>` : '<span class="tag">unused</span>';
-  const srcs = c.sources || []; const badge = srcs.length === 2 ? '' : `<span class="tag src">${srcs.length ? SRC_NAME[srcs[0]] + ' only' : 'no data yet'}</span>`;
+  const unv = (c.unverified || []).includes(screenSrc()) ? '<span class="tag unv" title="No data was seen for this widget when it was tested on a live system. It may stay empty; hide such widgets with the setting in Data sources and connections.">unverified</span>' : '';
+  const srcs = c.sources || []; const badge = unv + (srcs.length === 2 ? '' : `<span class="tag src">${srcs.length ? SRC_NAME[srcs[0]] + ' only' : 'no data yet'}</span>`);
   return `<button data-add="${esc(c.type)}" class="${e ? 'is-used' : ''}" title="${esc(c.type)}"><span>${esc(c.title)}</span>${badge}${tag}</button>`;
 }
 function pickerBody() {
@@ -272,7 +273,7 @@ function szRead() {   // current field values back into szRows (keys left blank 
 const szBody = () => szRows.map((c) => ({ id: c.id, name: c.name, host: c.host, port: c.port, username: c.username || '', password: c.password || '', verifyTls: Boolean(c.verifyTls), enabled: c.enabled !== false }));
 function showSource() { /* both sections are always shown: each source has its own on/off */ }
 function fillSettings(s) {
-  $('#s_source').value = s.source || 'rai'; $('#s_ai_on').checked = s.aiEnabled !== false;
+  $('#s_source').value = s.source || 'rai'; $('#s_ai_on').checked = s.aiEnabled !== false; $('#s_hide').checked = Boolean(s.hideUnavailable);
   if (s.enabledSources) enabledSrc = s.enabledSources;
   szRows = (s.smartzone || []).map((c) => ({ ...c, password: '' })); szDraw();
   _fillRai(s);
@@ -300,6 +301,11 @@ $('#s_source').addEventListener('change', async (e) => {
   if (!r.ok) { sMsg((await r.json()).error || 'Save failed', 'bad'); return; }
   await Promise.all([loadSettings(), load()]);   // the stock screens (and the widget picker) follow the source
   if (msg) msg.textContent = '';
+});
+$('#s_hide').addEventListener('change', async (e) => {
+  const r = await fetch(api('/api/settings'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hideUnavailable: e.target.checked }) });
+  if (!r.ok) { sMsg((await r.json()).error || 'Save failed', 'bad'); return; }
+  await load();   // the picker and presets follow
 });
 $('#s_ai_on').addEventListener('change', async (e) => {
   const r = await fetch(api('/api/settings'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ aiEnabled: e.target.checked }) });

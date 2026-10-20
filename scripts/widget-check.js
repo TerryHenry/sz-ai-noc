@@ -26,6 +26,7 @@ const opt = (n) => { const i = args.indexOf(`--${n}`); return i >= 0 ? args[i + 
 const env = process.env;
 
 if (!process.env.NOC_DATA_DIR) process.env.NOC_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'widget-check-'));
+process.env.NOC_HIDE_UNAVAILABLE = '1';   // the checks below ("no offered preset holds a widget without data") are about the hidden-widgets mode
 const SOURCE = opt('source') === 'smartzone' ? 'smartzone' : 'rai';
 if (SOURCE === 'smartzone') process.env.NOC_SOURCE = 'smartzone';
 if (flag('demo')) { process.env.NOC_DEMO = '1'; if (SOURCE === 'smartzone') process.env.NOC_DEMO_SZ = '1'; else if (!flag('raw')) process.env.NOC_DEMO_AI = '1'; }

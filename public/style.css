@@ -86,7 +86,12 @@ tr.ok td:first-child { box-shadow: inset 3px 0 var(--ok); } tr.warn td:first-chi
 
 .dots i { cursor: pointer; }
 .ctl { display: flex; gap: .3rem; margin-left: .5rem; transition: opacity .4s; }
-.ctl button { font: inherit; font-size: .8rem; color: var(--muted); background: var(--panel-2); border: 1px solid var(--line); border-radius: .35rem; padding: .1rem .6rem; cursor: pointer; }
+.ctl button { font: inherit; font-size: .8rem; color: var(--muted); background: var(--panel-2); border: 1px solid var(--line); border-radius: .35rem; padding: .1rem .5rem; cursor: pointer; height: 1.7rem; box-sizing: border-box; text-align: center; }
+/* Back / Hold / Forward keep one size and one place: they sit right after the title (before the screen name and dots, whose widths change) and Hold has a fixed width so "Hold" and "Resume" do not resize it. */
+.ctl { flex: 0 0 auto; }
+.ctl #prev, .ctl #next { width: 2.2rem; padding-left: 0; padding-right: 0; }
+.ctl #hold { width: 5.8rem; padding-left: 0; padding-right: 0; white-space: nowrap; }
+.screen-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ctl button:hover { color: var(--text); border-color: var(--info); }
 .ctl button.held { color: var(--warn); border-color: var(--warn); }
 body.idle .ctl:not(.pinned) { opacity: 0; pointer-events: none; }

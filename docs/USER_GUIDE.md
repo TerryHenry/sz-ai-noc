@@ -175,7 +175,7 @@ drill-down. Alerts (see *Alerts*) are evaluated for each source on its own and n
 **For RUCKUS AI**, **For SmartZone**, or **Everything**. Buttons in the widget picker carry a *RUCKUS AI only* / *SmartZone only* tag when a widget
 works for just one source, and the stock screens are presets of their own: *RUCKUS AI Overview / Zones / Switches / Intent AI* and
 *SmartZone Overview / Zones / Wi-Fi networks / Clients / Switches / Access / Guests / AP radios* (Access: DPSK, VLAN pools, Wi-Fi calling policies; AP radios: band, channel width, channel, airtime, noise and controller load). Widgets already on a screen always stay visible. Widgets that need switches, switch ports,
-DPSK, guests, Wi-Fi calling profiles, Intent AI or the RUCKUS AI analytics are hidden for SmartZone (`npm run widgets:check -- --source smartzone`).
+DPSK, guests, Wi-Fi calling profiles, Intent AI or the RUCKUS AI analytics cannot be measured on every system. Intent AI and the RUCKUS AI analytics are never offered for SmartZone; everything else is offered but tagged *unverified* when it showed no data in testing (see below).
 
 **Stock screens follow what is on.** Turning a source on or off swaps an untouched stock layout for the stock layout of what is now on (with both
 on, both sets, named "RUCKUS AI · Overview", "SmartZone · Overview" and so on). A layout you have edited is left alone; use the editor's
@@ -227,11 +227,11 @@ RUCKUS One API keys do **not** work here. The MSP and per-customer modes of RUCK
 
 *(Screenshots use synthetic demo data: `npm run demo:ai` shows the same screens without credentials.)*
 
-The **+ Preset screen…** menu adds more. Presets are all or nothing: a preset is offered for a source only when every widget in it can show that source's data, so you never get a trimmed or half-working screen, and a preset that is stock for the other source (or MSP-only) is not offered. A preset appears for a source as soon as all of its widgets work there. `npm run widgets:check` fails if a default screen or an offered preset holds a widget without data.
+The **+ Preset screen…** menu adds more. By default **every widget and preset is offered** so you can try it; the ones that showed no data when tested on a live system are tagged **unverified** and may stay empty. Presets are offered whole: one that is stock for the other source, or MSP-only, is never offered.
 
-The picker lists only widgets that can show RUCKUS AI data. It matches title, group and ID in the search box (`controller`, `intent`,
+The picker lists every widget that could work for the screen's source (not the RUCKUS AI-only ones on a SmartZone screen, nor MSP ones). It matches title, group and ID in the search box (`controller`, `intent`,
 `firmware`, `model`, `zone`…). The tag on each button shows whether you already use it (**in use ×2 · 1 here** / **unused**), and
-**Unused only** filters the list. Tick **Show … without RUCKUS AI data** to list the hidden widgets as well; they stay empty.
+**Unused only** filters the list. Widgets tagged *unverified* showed no data when tested; they can be tried, and **Data sources and connections → Hide widgets that showed no data** hides them (and the presets that need them) again.
 
 Groups you will use most: **RUCKUS AI** (controllers, Intent AI), **Headline numbers**, **Breakdowns**, **Rankings**, **Lists & tables**,
 **Trends**, **APs**, **Switches**, **Alarms**, **Client experience** and **History**.
@@ -275,7 +275,7 @@ npm run widgets:check -- --demo                                          # offli
 npm run widgets:check -- --save snap.json --write-unavailable            # also refresh the list the editor hides
 ```
 
-`snap.json` holds your real names: keep it local (it is git-ignored). The list of hidden widgets is `lib/widget-availability.json`.
+`snap.json` holds your real names: keep it local (it is git-ignored). The measured list is `lib/widget-availability.json`; it is only used when *Hide widgets that showed no data* is on (or `NOC_HIDE_UNAVAILABLE=1`).
 
 ### Switching events: flaps, spanning-tree changes, loops
 
@@ -914,7 +914,7 @@ Server logs go to the terminal (or the service log). Failed notifications and fa
 - **Controller names** come from RUCKUS AI's onboarding record, not the SmartZone's own name, so they may differ from what you see in the controller UI.
 - Per-zone connection success (*Connection success by venue*, *Connection experience by venue*) exists only for zones that currently have clients: RUCKUS AI returns nothing for an empty zone. Only the 40 zones with the most clients are queried, and they refresh every 5 minutes.
 - The whole AP list is read in under a second, but per-AP client counts and IP addresses are not (they need a slow per-zone call that returned errors), so those AP widgets are not offered.
-- The picker hides widgets with no RUCKUS AI source. The hidden list was measured on one tenant; run `npm run widgets:check` if yours looks different.
+- Widgets tagged *unverified* showed no data on the tenant or controller they were measured on (one of each). Run `npm run widgets:check` on yours to see which really stay empty; with *Hide widgets that showed no data* on, those are hidden.
 - History begins at first run; weekly comparisons need a week of data (and per-customer trends start when MSP mode is enabled).
 - The Windows installer / zip have had limited testing.
 - Alert state is in memory: restarting re-fires active alerts.

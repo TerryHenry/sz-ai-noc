@@ -20,8 +20,8 @@ and the editor only offers the widgets and screens that work with it.
 - **SmartZone, direct** (for sites without RUCKUS AI): zones, APs with live status / model / firmware / IP / client counts / channel widths, WLANs, clients, alarms, DPSK users, VLAN pools, Wi-Fi calling policies, controller CPU / memory / disk, and ICX switches with their ports (status, PoE, CPU, memory, neighbours), from one or many
   controllers. Signs in with a read-only administrator (service ticket); passwords are write-only.
 - **On / off per source and per controller.** Both can be on together; **each screen shows exactly one source**, never a mix. Stock screens, history and alerts follow the source.
-- **Only what works is offered.** Every widget and screen knows which sources it can show; the picker hides the rest (with *RUCKUS AI only* / *SmartZone only* tags and a
-  "For this screen / RUCKUS AI / SmartZone / Everything" switch), and presets are all-or-nothing: shown for a source only when every widget in them works there.
+- **Only what can work is offered.** Every widget and screen knows which sources it can show; the picker leaves out the impossible ones (with *RUCKUS AI only* / *SmartZone only* tags and a
+  "For this screen / RUCKUS AI / SmartZone / Everything" switch), and presets are offered whole. Widgets that showed no data when tested are tagged *unverified* (shown by default, hide them with one setting);
   `npm run widgets:check` measures this against your own tenant or controller.
 
 **Dashboards you design**
