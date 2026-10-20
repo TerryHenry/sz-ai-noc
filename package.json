@@ -1,6 +1,6 @@
 {
   "name": "sz-ai-noc",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "SZ-AI NOC Wall — a server-side NOC wall display for RUCKUS AI (ruckus.cloud/ai) and RUCKUS SmartZone.",
   "private": true,
   "engines": {
