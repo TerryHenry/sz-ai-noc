@@ -173,13 +173,17 @@ function displayWidgets(screen) {
 const placedFor = (screen) => { const list = displayWidgets(screen); return NocLayout.place(screen, list, list !== screen.widgets).list; };
 
 // Size rem so the whole screen fills the viewport height exactly (bounded by width so it never gets silly).
+// The header has its own, constant size (--hs), set from the viewport width only: it must not change with each screen's content like everything below it does.
+function sizeHeader() { document.documentElement.style.setProperty('--hs', `${Math.max(12, Math.min(innerWidth / 100, 44)) * USER_SCALE}px`); }
 function fitScreen(widgets) {
+  sizeHeader();
   const rows = NocLayout.rowsNeeded(widgets);
   const banner = $('#banner').classList.contains('show') ? $('#banner').offsetHeight : 0;
   const tickerH = $('#ticker').classList.contains('off') ? 0 : $('#ticker').offsetHeight;
-  const avail = innerHeight - banner - tickerH;
-  // header ≈ 2.7rem, stage padding 1.5rem, row 5.2rem, gap .75rem
-  let f = avail / (2.7 + 1.5 + 5.2 * rows + 0.75 * (rows - 1));
+  const hdr = ($('header.bar') || { offsetHeight: 0 }).offsetHeight;
+  const avail = innerHeight - banner - tickerH - hdr;
+  // stage padding 1.5rem, row 5.2rem, gap .75rem (the header is measured, not scaled)
+  let f = avail / (1.5 + 5.2 * rows + 0.75 * (rows - 1));
   f = Math.max(8, Math.min(f, innerWidth / 62)) * USER_SCALE;
   document.documentElement.style.fontSize = `${f}px`;
 }

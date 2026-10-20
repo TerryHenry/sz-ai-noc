@@ -13,18 +13,18 @@
 * { box-sizing: border-box; }
 html { font-size: 14px; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 400 1rem/1.35 ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-header.bar { display: flex; align-items: center; gap: 1rem; padding: .55rem 1rem; border-bottom: 1px solid var(--line); background: var(--panel); flex: 0 0 auto; }
-header.bar h1 { margin: 0; font-size: 1.1rem; font-weight: 650; letter-spacing: .01em; }
-.screen-name { color: var(--muted); font-size: 1rem; }
-.dots { display: flex; gap: .4rem; margin-left: .25rem; }
-.dots i { width: .55rem; height: .55rem; border-radius: 50%; background: var(--line); display: block; }
+header.bar { font-size: var(--hs, 16px); display: flex; align-items: center; gap: 1em; padding: .55em 1em; border-bottom: 1px solid var(--line); background: var(--panel); flex: 0 0 auto; }
+header.bar h1 { margin: 0; font-size: 1.1em; font-weight: 650; letter-spacing: .01em; }
+.screen-name { color: var(--muted); font-size: 1em; }
+.dots { display: flex; gap: .4em; margin-left: .25em; }
+.dots i { width: .55em; height: .55em; border-radius: 50%; background: var(--line); display: block; }
 .dots i.on { background: var(--info); }
 .spacer { flex: 1; }
-.chip { font-size: .8rem; padding: .15rem .6rem; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.chip { font-size: .8em; padding: .15em .6em; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
 .chip.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
 .chip.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 55%, var(--line)); }
 .chip.bad { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 55%, var(--line)); }
-.clock { font-variant-numeric: tabular-nums; color: var(--muted); }
+.clock { font-variant-numeric: tabular-nums; color: var(--muted); font-size: .9em; }
 #stage { flex: 1 1 auto; min-height: 0; padding: .75rem; overflow: hidden; }
 .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: 5.2rem; grid-auto-flow: row dense; gap: .75rem; animation: fade .35s ease; }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
@@ -85,12 +85,12 @@ tr.ok td:first-child { box-shadow: inset 3px 0 var(--ok); } tr.warn td:first-chi
 #banner.show { display: block; }
 
 .dots i { cursor: pointer; }
-.ctl { display: flex; gap: .3rem; margin-left: .5rem; transition: opacity .4s; }
-.ctl button { font: inherit; font-size: .8rem; color: var(--muted); background: var(--panel-2); border: 1px solid var(--line); border-radius: .35rem; padding: .1rem .5rem; cursor: pointer; height: 1.7rem; box-sizing: border-box; text-align: center; }
+.ctl { display: flex; gap: .3em; margin-left: .5em; transition: opacity .4s; }
+.ctl button { font: inherit; font-size: .8em; color: var(--muted); background: var(--panel-2); border: 1px solid var(--line); border-radius: .35em; padding: .1em .5em; cursor: pointer; height: 2.1em; box-sizing: border-box; text-align: center; }
 /* Back / Hold / Forward keep one size and one place: they sit right after the title (before the screen name and dots, whose widths change) and Hold has a fixed width so "Hold" and "Resume" do not resize it. */
 .ctl { flex: 0 0 auto; }
-.ctl #prev, .ctl #next { width: 2.2rem; padding-left: 0; padding-right: 0; }
-.ctl #hold { width: 5.8rem; padding-left: 0; padding-right: 0; white-space: nowrap; }
+.ctl #prev, .ctl #next { width: 2.75em; padding-left: 0; padding-right: 0; }
+.ctl #hold { width: 7.25em; padding-left: 0; padding-right: 0; white-space: nowrap; }
 .screen-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ctl button:hover { color: var(--text); border-color: var(--info); }
 .ctl button.held { color: var(--warn); border-color: var(--warn); }
@@ -103,7 +103,7 @@ body.idle { cursor: none; }
 .mleg span { display: inline-flex; align-items: center; gap: .35rem; white-space: nowrap; }
 .mleg i { width: .7rem; height: .7rem; border-radius: 2px; display: inline-block; }
 
-.ctl select { font: inherit; font-size: .8rem; color: var(--muted); background: var(--panel-2); border: 1px solid var(--line); border-radius: .35rem; padding: .1rem .3rem; }
+.ctl select { font: inherit; font-size: .8em; color: var(--muted); background: var(--panel-2); border: 1px solid var(--line); border-radius: .35rem; padding: .1rem .3rem; }
 .bar .l, .legend div, tbody tr td:first-child { cursor: pointer; }
 
 /* ticker */
