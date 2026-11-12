@@ -521,7 +521,7 @@ colour. (For alerts that notify people, use [Alerts](#alerts-and-notifications).
 
 ### Rules
 
-Open **Alerts** in the editor. Each rule reads like a sentence:
+Open **Alerts** in the editor. The starter rules are all **switched off** on a new install (so a new wall never takes over screens or notifies anyone by surprise): tick **On** for the ones you want. Each rule reads like a sentence:
 
 > **When** *Switches offline* **is** *≥* **1** **for** *120 s* → **Critical**, **per venue**, **take over screens**, **notify**
 

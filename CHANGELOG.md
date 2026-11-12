@@ -1,6 +1,7 @@
 # Changelog
 
-## 0.1.1 — 2026-10-20
+## 0.1.1 — 2026-11-12
+- **The starter alert rules are off by default** on a new install (no screen takeovers or notifications until you switch rules on). Existing walls keep their saved rules.
 - The viewer header keeps one size and one button position on every screen.
 - Fixed the *Application categories* donut showing NaN; its legend now shows sizes (GB / MB).
 - SmartZone passwords are stripped from configuration-only backups; all widgets are offered by default (tagged *unverified*); the 0.1.0 notes below still apply.
